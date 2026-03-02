@@ -1,0 +1,469 @@
+Perfect — below is the **complete MVP UI wireframe pages list**, structured exactly how we would give it to our design + frontend team.
+
+We’ll split it into:
+
+1. Customer-facing app
+2. Admin dashboard
+3. Shared/system pages
+4. Navigation structure
+5. Wireframe layout notes per page
+
+---
+
+# 🟣 1️⃣ CUSTOMER-SIDE UI (Public Website)
+
+## 1. Home Page
+
+**Goal:** Convert visitors into bookings.
+
+**Sections:**
+
+* Header (Logo | Services | Offers | Book Now | Contact)
+* Hero section
+
+  * Headline
+  * Subheadline
+  * Primary CTA → “Book Appointment”
+* Featured services (3–6 cards)
+* Active offers/combo section
+* Why choose us (trust section)
+* Testimonials (optional MVP-lite)
+* Footer (contact info, WhatsApp, location, social links)
+
+---
+
+## 2. Services Listing Page
+
+**URL:** `/services`
+
+**Layout:**
+
+* Page title
+* Service cards grid
+
+Each card:
+
+* Service name
+* Short description
+* Duration
+* Price
+* “Book Now” button
+
+Optional filter (later):
+
+* Category
+* Price range
+
+---
+
+## 3. Service Details Page
+
+**URL:** `/services/:id`
+
+**Layout:**
+
+* Service name
+* Full description
+* Duration
+* Price (with discount if active)
+* “Book Appointment” button
+
+Optional:
+
+* Before/after gallery
+* FAQs
+
+---
+
+## 4. Booking – Step 1: Select Date & Time
+
+**URL:** `/book/:serviceId`
+
+**Layout:**
+Left:
+
+* Service summary card
+
+  * Name
+  * Duration
+  * Price
+
+Right:
+
+* Calendar (date picker)
+* Available time slots grid
+
+Rules:
+
+* Only future dates
+* Only clinic open days
+* Unavailable times disabled
+* Fully booked days greyed out
+
+CTA:
+
+* “Continue”
+
+---
+
+## 5. Booking – Step 2: Client Details
+
+**URL:** `/book/details`
+
+Form fields:
+
+* Full name
+* Phone number (WhatsApp)
+* Optional note
+
+CTA:
+
+* Confirm Appointment
+
+After submit:
+
+* Loading state
+* Success screen
+
+---
+
+## 6. Booking Confirmation Page
+
+**URL:** `/booking-success`
+
+Shows:
+
+* “Appointment Confirmed”
+* Service name
+* Date
+* Time
+* Booking reference code
+* “Add to Calendar” (optional)
+* “Manage Booking” button
+
+---
+
+## 7. Manage Booking Page
+
+**URL:** `/manage-booking`
+
+Access method:
+
+* Enter phone number
+* Receive OTP OR enter booking code
+
+Shows:
+
+* Upcoming appointments
+* Cancel button (if allowed)
+* Status badge (Confirmed / Cancelled)
+
+---
+
+## 8. Feedback Page
+
+**URL:** `/feedback/:appointmentId`
+
+Triggered from WhatsApp link.
+
+Layout:
+
+* “How was your visit?”
+* Star rating (1–5)
+* Comment box
+* Submit button
+* Thank you screen
+
+---
+
+# 🔵 2️⃣ ADMIN DASHBOARD UI
+
+Admin URL: `/admin`
+
+---
+
+## 1. Admin Login Page
+
+Fields:
+
+* Email
+* Password
+* Login button
+
+---
+
+## 2. Admin Dashboard (Main Overview)
+
+**Landing page after login**
+
+Top summary cards:
+
+* Today’s appointments
+* Monthly revenue
+* Monthly profit
+* Cancellation rate
+
+Charts:
+
+* Revenue over time
+* Most booked services
+
+Tables:
+
+* Top 5 clients
+* Upcoming appointments
+
+---
+
+## 3. Appointments Management Page
+
+**View toggle:**
+
+* Calendar view
+* List view
+
+Filters:
+
+* Date
+* Status
+* Service
+* Client
+
+Each appointment card:
+
+* Client name
+* Phone
+* Service
+* Time
+* Status
+* Actions:
+
+  * Confirm
+  * Cancel
+  * Mark as Done
+  * Edit time
+
+---
+
+## 4. Services Management Page
+
+Table view:
+
+Columns:
+
+* Name
+* Price
+* Cost price
+* Duration
+* Active status
+* Actions (Edit / Delete)
+
+Button:
+
+* * Add Service
+
+---
+
+## 5. Add/Edit Service Page
+
+Form fields:
+
+* Service name
+* Description
+* Price
+* Cost price
+* Duration (minutes)
+* Active toggle
+
+Save button
+
+---
+
+## 6. Offers & Combos Page
+
+Table:
+
+* Offer title
+* Type (Discount / Combo)
+* Price
+* Active dates
+* Status
+
+Button:
+
+* * Create Offer
+
+Create Offer form:
+
+* Title
+* Type
+* Select services (for combo)
+* Final price
+* Start date
+* End date
+
+---
+
+## 7. Clinic Schedule Settings Page
+
+Sections:
+
+### Weekly Schedule
+
+Table:
+
+* Monday–Sunday
+* Open time
+* Close time
+* Active toggle
+
+### Special Dates / Exceptions
+
+List:
+
+* Date
+* Closed or special hours
+* Edit/Delete
+
+Button:
+
+* * Add exception
+
+---
+
+## 8. Clients Page
+
+Table:
+
+* Name
+* Phone
+* Total bookings
+* Total revenue
+* Last visit
+
+Click → client profile page:
+
+* Booking history
+* Notes
+* Cancel history
+
+---
+
+## 9. Analytics Page (Detailed)
+
+Tabs:
+
+* Revenue
+* Services
+* Clients
+* Performance
+
+Metrics:
+
+* Revenue vs cost vs profit
+* Most profitable service
+* Most booked service
+* Client lifetime value
+* Booking trends
+
+---
+
+## 10. WhatsApp Logs Page (Simple MVP)
+
+Table:
+
+* Client
+* Message type
+* Status (Sent / Failed)
+* Date
+* Retry button (optional)
+
+---
+
+# 🟡 3️⃣ SHARED / SYSTEM PAGES
+
+* 404 Page
+* 500 Error Page
+* Loading skeleton components
+* Unauthorized page
+* Maintenance page (optional)
+
+---
+
+# 🧭 4️⃣ Navigation Structure
+
+## Customer Navigation
+
+Header:
+
+* Logo
+* Services
+* Offers
+* Book Now
+* Contact
+
+Footer:
+
+* Contact info
+* WhatsApp
+* Location
+* Social
+
+---
+
+## Admin Navigation (Sidebar)
+
+* Dashboard
+* Appointments
+* Services
+* Offers
+* Clients
+* Schedule
+* Analytics
+* WhatsApp Logs
+* Logout
+
+---
+
+# 🎯 5️⃣ UX Design Principles for This Product
+
+We design for:
+
+1. **Fast booking (under 60 seconds)**
+2. Mobile-first (70–80% of users)
+3. Large tap-friendly time slots
+4. Clear pricing
+5. Zero confusion about availability
+6. Clean aesthetic (beauty clinic feel)
+
+---
+
+# 🔥 MVP Simplification Option (If You Want Ultra Lean v1)
+
+If you want to launch in 3–4 weeks only:
+
+Remove temporarily:
+
+* Combos
+* WhatsApp logs page
+* Advanced analytics
+* Client profiles
+
+Keep:
+
+* Services
+* Booking
+* Admin calendar
+* Revenue calculation
+* WhatsApp confirmation + reminder + feedback
+
+---
+
+If you'd like next, I can:
+
+* Design the **exact booking flow UX (step-by-step interaction logic)**
+* Or define the **component structure (React components tree)**
+* Or define the **database-to-UI mapping diagram**
+* Or create a **clickable wireframe structure outline (low-fidelity layout spec)**
+
+Tell me how technical you want to go next.

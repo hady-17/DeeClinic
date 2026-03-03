@@ -13,6 +13,9 @@ import { FeedbackRating } from "./models/feedback.model";
 import { Weekday } from "./models/clinicSchedual.model";
 import { whatsAppMessageType, whatsAppMessageStatus } from "./models/whatsappMessage.model";
 import { NeonUserRepository } from "./repository/neon/user.repository";
+import { NeonClientRepository } from "./repository/neon/client.repository";
+import { WhatsAppMessageRepository } from "./repository/neon/whatsappMessage.repositoy";
+import { NeonClinicScheduleRepository } from "./repository/neon/clinicSchedual.repository";
 
 // Create a User instance
 const randomNum = Math.floor(Math.random() * 100);
@@ -113,12 +116,18 @@ logger.info("------------------------------------------");
 
 async function main() {
     const userNeonRepo = new NeonUserRepository();
+    const clientNeonRepo = new NeonClientRepository();
+    const whatsAppMsgNeonRepo = new WhatsAppMessageRepository();
+    const clinicScheduleNeonRepo = new NeonClinicScheduleRepository();
     try {
         await userNeonRepo.init();
+        await clientNeonRepo.init();
+        await whatsAppMsgNeonRepo.init();
+        await clinicScheduleNeonRepo.init();
         logger.info("User repository initialized successfully.");
         const userId = await userNeonRepo.create(user);
         logger.info(`User created with ID: ${userId}`);
-        const fetched = await userNeonRepo.getById(userId);
+        /**const fetched = await userNeonRepo.getById(userId);
         logger.info(`Fetched user: ${fetched.getEmail()}`);
         const fetchedByEmail = await userNeonRepo.getbyEmail(fetched.getEmail());
         logger.info(`Fetched by email: ${fetchedByEmail.getName()}`);
@@ -131,8 +140,33 @@ async function main() {
             .setRole(user.getRole())
             .setStatus(user.getStatus())
             .build();
-        await userNeonRepo.update(userId, user_1);
-        await userNeonRepo.delete(userId);
+        await userNeonRepo.update(userId, user_1);*/
+        logger.info("----------------------------------");
+        const clientId = await clientNeonRepo.create(client);
+        logger.info(`Client created with ID: ${clientId}`);
+        /**const fetchedClient = await clientNeonRepo.getById(clientId);
+        logger.info(`Fetched client: ${fetchedClient.name}`);
+        const allClients = await clientNeonRepo.getAll();
+        logger.info(`Total clients in database: ${allClients.length}`);
+        const client_1 = new ClientBuilder()
+            .setName("Ahmed Hassan Updated")
+            .setPhone(client.getPhone())
+            .build();
+        await clientNeonRepo.update(clientId, client_1);*/
+        logger.info("----------------------------------");
+        const whatsappMsgId = await whatsAppMsgNeonRepo.create(whatsappMsg);
+        logger.info(`WhatsAppMessage created with ID: ${whatsappMsgId}`);
+        const fetchedMsg = await whatsAppMsgNeonRepo.getById(whatsappMsgId);
+        logger.info(`Fetched WhatsAppMessage for appointment ID: ${fetchedMsg.appointment_id}`);
+        const allMessages = await whatsAppMsgNeonRepo.getAll();
+        logger.info(`Total WhatsAppMessages in database: ${allMessages.length}`);
+        logger.info("----------------------------------");
+        const scheduleId = await clinicScheduleNeonRepo.create(scheduleEntry);
+        logger.info(`ClinicSchedule created with ID: ${scheduleId}`);
+        const fetchedSchedule = await clinicScheduleNeonRepo.getById(scheduleId);
+        logger.info(`Fetched ClinicSchedule for weekday: ${fetchedSchedule.weekday}`);
+        const allSchedules = await clinicScheduleNeonRepo.getAll();
+        logger.info(`Total ClinicSchedules in database: ${allSchedules.length}`);
 
     } catch (err) {
         logger.error("Error during repository operations", err);

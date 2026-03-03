@@ -1,7 +1,7 @@
 import { IRepository } from "../IRepository";
 import { WhatsAppMessage } from "../../models/whatsappMessage.model";
 import logger from "../../utils/logger";
-import {DBexception, InitializationException} from "../../utils/exceptions/repositoryException";
+import {DBexception} from "../../utils/exceptions/repositoryException";
 import uuid from "uuid";
 import ConnectionManager from "../../utils/dbConnectionManager";
 

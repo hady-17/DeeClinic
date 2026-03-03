@@ -1,10 +1,9 @@
 import { IRepository } from "../IRepository";
 import { Appointment } from "../../models/appointment.model";
 import logger from "../../utils/logger";
-import {DBexception, InitializationException} from "../../utils/exceptions/repositoryException";
+import {DBexception} from "../../utils/exceptions/repositoryException";
 import uuid from "uuid";
 import ConnectionManager from "../../utils/dbConnectionManager";
-import { create } from "domain";
 
 /**
  * id: string;

@@ -6,12 +6,16 @@ import { v4 as uuidv4 } from "uuid";
     phone: string;
     created_at?: Date; */
 export class ClientBuilder {
-    private id: string = uuidv4();
+    private id!: string;
     private name!: string;
     private phone!: string;
     private created_at?: Date;
     public static newBuilder(): ClientBuilder {
         return new ClientBuilder();
+    }
+    public setId(id: string): ClientBuilder {
+        this.id = id;
+        return this;
     }
     public setName(name: string): ClientBuilder {
         this.name = name;

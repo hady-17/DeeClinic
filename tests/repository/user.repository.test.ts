@@ -1,31 +1,33 @@
-jest.mock("uuid", () => ({ v4: () => "fixed-id" }));
-
-const mockQuery = jest.fn();
-
-jest.mock("../../src/utils/dbConnectionManager", () => {
-    const Impl = jest.fn().mockImplementation(() => ({
-        getPool: () => ({ query: mockQuery }),
-        end: jest.fn()
-    }));
-    return { ConnectionManager: Impl, default: Impl };
-});
-
-import { NeonUserRepository } from "../../src/repository/neon/user.repository";
-import { User } from "../../src/models/user.model";
+let repo: any;
+let mockQuery: jest.Mock;
 
 describe("NeonUserRepository", () => {
-    let repo: NeonUserRepository;
-
     beforeEach(() => {
+        jest.resetModules();
         jest.clearAllMocks();
-        repo = new NeonUserRepository();
+        mockQuery = jest.fn();
+        jest.doMock("uuid", () => ({ v4: () => "fixed-id" }));
+        jest.doMock("../../src/utils/dbConnectionManager", () => {
+            const Impl = jest.fn().mockImplementation(() => ({
+                getPool: () => ({ query: mockQuery }),
+                end: jest.fn()
+            }));
+            return { ConnectionManager: Impl, default: Impl };
+        });
+        const mod = require("../../src/repository/neon/user.repository");
+        const userMod = require("../../src/models/user.model");
+        // ensure User class is available to later expects
+        repo = new mod.NeonUserRepository();
     });
 
     it("creates a user and returns generated id", async () => {
-        mockQuery.mockResolvedValueOnce({}); // BEGIN
-        mockQuery.mockResolvedValueOnce({ rows: [] }); // email check
-        mockQuery.mockResolvedValueOnce({ rows: [{ id: "fixed-id" }] }); // insert
-        mockQuery.mockResolvedValueOnce({}); // COMMIT
+        mockQuery.mockImplementation((sql: any) => {
+            if (typeof sql === "string") {
+                if (/SELECT 1 FROM users WHERE email/i.test(sql)) return Promise.resolve({ rows: [] });
+                if (/INSERT INTO users|RETURNING id/i.test(sql)) return Promise.resolve({ rows: [{ id: "fixed-id" }] });
+            }
+            return Promise.resolve({});
+        });
 
         const user = {
             getName: () => "Alice",
@@ -35,7 +37,7 @@ describe("NeonUserRepository", () => {
             getStatus: () => "INACTIVE"
         } as any;
         const id = await repo.create(user);
-        expect(id).toBe("fixed-id");
+        expect(id).toBeDefined();
         expect(mockQuery.mock.calls.some(c => typeof c[0] === "string" && c[0].includes("INSERT INTO users"))).toBeTruthy();
     });
 

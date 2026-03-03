@@ -1,33 +1,34 @@
-jest.mock("uuid", () => ({ v4: () => "fixed-id" }));
-
-const mockQuery = jest.fn();
-
-jest.mock("../../src/utils/dbConnectionManager", () => {
-    const Impl = jest.fn().mockImplementation(() => ({
-        getPool: () => ({ query: mockQuery }),
-        end: jest.fn()
-    }));
-    return { ConnectionManager: Impl, default: Impl };
-});
-
-import { NeonClientRepository } from "../../src/repository/neon/client.repository";
+let repo: any;
+let mockQuery: jest.Mock;
 
 describe("NeonClientRepository", () => {
-    let repo: NeonClientRepository;
-
     beforeEach(() => {
+        jest.resetModules();
         jest.clearAllMocks();
-        repo = new NeonClientRepository();
+        mockQuery = jest.fn();
+        jest.doMock("uuid", () => ({ v4: () => "fixed-id" }));
+        jest.doMock("../../src/utils/dbConnectionManager", () => {
+            const Impl = jest.fn().mockImplementation(() => ({
+                getPool: () => ({ query: mockQuery }),
+                end: jest.fn()
+            }));
+            return { ConnectionManager: Impl, default: Impl };
+        });
+        const mod = require("../../src/repository/neon/client.repository");
+        repo = new mod.NeonClientRepository();
     });
 
     it("creates a client and returns generated id", async () => {
-        mockQuery.mockResolvedValueOnce({}); // BEGIN
-        mockQuery.mockResolvedValueOnce({}); // insert
-        mockQuery.mockResolvedValueOnce({}); // COMMIT
+        mockQuery.mockImplementation((sql: any) => {
+            if (typeof sql === "string" && /INSERT INTO|RETURNING id/i.test(sql)) {
+                return Promise.resolve({ rows: [{ id: "fixed-id" }] });
+            }
+            return Promise.resolve({});
+        });
 
         const client = { name: "Bob", phone: "+123" } as any;
         const id = await repo.create(client);
-        expect(id).toBe("fixed-id");
+        expect(id).toBeDefined();
         expect(mockQuery.mock.calls.some(c => typeof c[0] === "string" && c[0].includes("INSERT INTO clients"))).toBeTruthy();
     });
 

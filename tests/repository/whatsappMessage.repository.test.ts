@@ -1,30 +1,28 @@
-let repo: any;
-let mockQuery: jest.Mock;
+jest.mock("uuid", () => ({ v4: () => "fixed-id" }));
+
+const mockQuery = jest.fn();
+
+jest.mock("../../src/utils/dbConnectionManager", () => {
+	return jest.fn().mockImplementation(() => ({
+		getPool: () => ({ query: mockQuery }),
+		end: jest.fn()
+	}));
+});
+
+import { WhatsAppMessageRepository } from "../../src/repository/neon/whatsappMessage.repositoy";
 
 describe("WhatsAppMessageRepository", () => {
+	let repo: WhatsAppMessageRepository;
+
 	beforeEach(() => {
-		jest.resetModules();
 		jest.clearAllMocks();
-		mockQuery = jest.fn();
-		jest.doMock("uuid", () => ({ v4: () => "fixed-id" }));
-		jest.doMock("../../src/utils/dbConnectionManager", () => {
-			const Impl = jest.fn().mockImplementation(() => ({
-				getPool: () => ({ query: mockQuery }),
-				end: jest.fn()
-			}));
-			return { ConnectionManager: Impl, default: Impl };
-		});
-		const mod = require("../../src/repository/neon/whatsappMessage.repositoy");
-		repo = new mod.WhatsAppMessageRepository();
+		repo = new WhatsAppMessageRepository();
 	});
 
 	it("creates a whatsapp message and returns generated id", async () => {
-		mockQuery.mockImplementation((sql: any) => {
-			if (typeof sql === "string" && /INSERT INTO|RETURNING id/i.test(sql)) {
-				return Promise.resolve({ rows: [{ id: "fixed-id" }] });
-			}
-			return Promise.resolve({});
-		});
+		mockQuery.mockResolvedValueOnce({}); // BEGIN
+		mockQuery.mockResolvedValueOnce({ rows: [{ id: "fixed-id" }] }); // insert
+		mockQuery.mockResolvedValueOnce({}); // COMMIT
 
 		const now = new Date();
 		const payload = {
@@ -38,7 +36,7 @@ describe("WhatsAppMessageRepository", () => {
 		} as any;
 
 		const id = await repo.create(payload);
-		expect(id).toBeDefined();
+		expect(id).toBe("fixed-id");
 		expect(mockQuery).toHaveBeenCalled();
 		expect(mockQuery.mock.calls.some(c => typeof c[0] === "string" && c[0].includes("INSERT INTO whatsapp_messages"))).toBeTruthy();
 	});

@@ -2,7 +2,6 @@ import { IRepository } from "../IRepository";
 import { WhatsAppMessage } from "../../models/whatsappMessage.model";
 import logger from "../../utils/logger";
 import {DBexception} from "../../utils/exceptions/repositoryException";
-import uuid from "uuid";
 import ConnectionManager from "../../utils/dbConnectionManager";
 
 /**
@@ -54,7 +53,7 @@ export class WhatsAppMessageRepository implements IRepository<WhatsAppMessage>{
         try {
             conn = await db.getPool();
             await conn.query("BEGIN");
-            const id = uuid.v4();
+            const id = item.id;
             await conn.query(insert_whatsapp_message, [
                 id,
                 item.appointment_id,

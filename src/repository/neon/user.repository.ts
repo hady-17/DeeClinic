@@ -3,7 +3,6 @@ import { User } from "../../models/user.model";
 import { IRepository } from "../../repository/IRepository";
 import { DBexception, InvalidItemException } from "../../utils/exceptions/repositoryException";
 import { ConnectionManager } from "../../utils/dbConnectionManager";
-import uuid from "uuid"; 
 
 
 /** id: string;
@@ -56,7 +55,7 @@ export class NeonUserRepository implements IRepository<User> {
             conn = db.getPool();
             // Start a transaction
             await conn.query("BEGIN");
-            const userId = user.getId ? user.getId() : uuid.v4();
+            const userId = user.id;
             const checkEmailQuery = `SELECT 1 FROM ${TABLE_NAME} WHERE email = $1`;
             const emailCheckResult = await conn.query(checkEmailQuery, [user.getEmail()]);
             if (emailCheckResult.rows.length > 0) {

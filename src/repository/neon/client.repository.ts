@@ -2,8 +2,7 @@ import logger from "../../utils/logger";
 import { Client } from "../../models/client.model";
 import { IRepository } from "../../repository/IRepository";
 import { DBexception, InvalidItemException } from "../../utils/exceptions/repositoryException";
-import { ConnectionManager } from "../../utils/dbConnectionManager";
-import uuid from "uuid"; 
+import { ConnectionManager } from "../../utils/dbConnectionManager"; 
 /**
  * id: string;
     name: string;
@@ -42,7 +41,7 @@ export class NeonClientRepository implements IRepository<Client> {
         try {
             conn = await db.getPool();
             await conn.query("BEGIN");
-            const id = uuid.v4();
+            const id = client.id;
             await conn.query(insert_client_query, [
                 id,
                 client.name,

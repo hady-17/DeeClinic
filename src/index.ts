@@ -16,6 +16,8 @@ import { NeonUserRepository } from "./repository/neon/user.repository";
 import { NeonClientRepository } from "./repository/neon/client.repository";
 import { WhatsAppMessageRepository } from "./repository/neon/whatsappMessage.repositoy";
 import { NeonClinicScheduleRepository } from "./repository/neon/clinicSchedual.repository";
+import { AppointmentRepository } from "./repository/neon/appointment.repository";
+import { FeedbackRepository } from "./repository/neon/feedback.repository";
 
 // Create a User instance
 const randomNum = Math.floor(Math.random() * 100);
@@ -119,11 +121,15 @@ async function main() {
     const clientNeonRepo = new NeonClientRepository();
     const whatsAppMsgNeonRepo = new WhatsAppMessageRepository();
     const clinicScheduleNeonRepo = new NeonClinicScheduleRepository();
+    const appointmentNeonRepo = new AppointmentRepository(); // Placeholder for Appointment repository
+    const feedbackNeonRepo = new FeedbackRepository(); // Placeholder for Feedback repository
     try {
         await userNeonRepo.init();
         await clientNeonRepo.init();
         await whatsAppMsgNeonRepo.init();
         await clinicScheduleNeonRepo.init();
+        await appointmentNeonRepo.init();
+        await feedbackNeonRepo.init();
         logger.info("User repository initialized successfully.");
         const userId = await userNeonRepo.create(user);
         logger.info(`User created with ID: ${userId}`);
@@ -154,6 +160,11 @@ async function main() {
             .build();
         await clientNeonRepo.update(clientId, client_1);*/
         logger.info("----------------------------------");
+        const appointmentId = await appointmentNeonRepo.create(appointment);
+        logger.info(`Appointment created with ID: ${appointmentId}`);
+        const fetchedAppointment = await appointmentNeonRepo.getById(appointmentId);
+        logger.info(`Fetched appointment for client ID: ${fetchedAppointment.client_id}`);
+        logger.info("----------------------------------");
         const whatsappMsgId = await whatsAppMsgNeonRepo.create(whatsappMsg);
         logger.info(`WhatsAppMessage created with ID: ${whatsappMsgId}`);
         const fetchedMsg = await whatsAppMsgNeonRepo.getById(whatsappMsgId);
@@ -167,6 +178,12 @@ async function main() {
         logger.info(`Fetched ClinicSchedule for weekday: ${fetchedSchedule.weekday}`);
         const allSchedules = await clinicScheduleNeonRepo.getAll();
         logger.info(`Total ClinicSchedules in database: ${allSchedules.length}`);
+        const feedbackId = await feedbackNeonRepo.create(feedback);
+        logger.info(`Feedback created with ID: ${feedbackId}`);
+        const fetchedFeedback = await feedbackNeonRepo.getById(feedbackId);
+        logger.info(`Fetched Feedback for appointment ID: ${fetchedFeedback.appointment_id}`);
+        const allFeedbacks = await feedbackNeonRepo.getAll();
+        logger.info(`Total Feedbacks in database: ${allFeedbacks.length}`);
 
     } catch (err) {
         logger.error("Error during repository operations", err);

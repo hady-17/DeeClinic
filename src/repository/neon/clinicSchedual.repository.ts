@@ -3,7 +3,6 @@ import { ClinicSchedule } from "../../models/clinicSchedual.model";
 import { IRepository } from "../../repository/IRepository";
 import { DBexception, InvalidItemException } from "../../utils/exceptions/repositoryException";
 import { ConnectionManager } from "../../utils/dbConnectionManager";
-import uuid from "uuid"; 
 
 /**
  * id: string;
@@ -44,7 +43,7 @@ export class NeonClinicScheduleRepository implements IRepository<ClinicSchedule>
         const db = new ConnectionManager();
         const pool = db.getPool();
         try {
-            const id = uuid.v4();
+            const id = schedual.id;
             const result = await pool.query(insert_schedule_query, [
                 id,
                 schedual.weekday,

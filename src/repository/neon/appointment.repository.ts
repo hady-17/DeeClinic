@@ -2,7 +2,7 @@ import { IRepository } from "../IRepository";
 import { Appointment } from "../../models/appointment.model";
 import logger from "../../utils/logger";
 import {DBexception} from "../../utils/exceptions/repositoryException";
-import uuid from "uuid";
+
 import ConnectionManager from "../../utils/dbConnectionManager";
 
 /**
@@ -56,7 +56,7 @@ export class AppointmentRepository implements IRepository<Appointment>{
          try {
             conn = await db.getPool();
             await conn.query("BEGIN");
-            const id = uuid.v4();
+            const id = item.id;
             await conn.query(insert_appointment, [
                 id,
                 item.client_id,

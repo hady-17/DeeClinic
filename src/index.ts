@@ -18,6 +18,7 @@ import { WhatsAppMessageRepository } from "./repository/neon/whatsappMessage.rep
 import { NeonClinicScheduleRepository } from "./repository/neon/clinicSchedual.repository";
 import { AppointmentRepository } from "./repository/neon/appointment.repository";
 import { FeedbackRepository } from "./repository/neon/feedback.repository";
+import { OfferRepository } from "./repository/neon/offer.repository";
 
 // Create a User instance
 const randomNum = Math.floor(Math.random() * 100);
@@ -123,6 +124,7 @@ async function main() {
     const clinicScheduleNeonRepo = new NeonClinicScheduleRepository();
     const appointmentNeonRepo = new AppointmentRepository(); // Placeholder for Appointment repository
     const feedbackNeonRepo = new FeedbackRepository(); // Placeholder for Feedback repository
+    const offerNeonRepo = new OfferRepository(); // Placeholder for Offer repository
     try {
         await userNeonRepo.init();
         await clientNeonRepo.init();
@@ -130,6 +132,7 @@ async function main() {
         await clinicScheduleNeonRepo.init();
         await appointmentNeonRepo.init();
         await feedbackNeonRepo.init();
+        await offerNeonRepo.init();
         logger.info("User repository initialized successfully.");
         const userId = await userNeonRepo.create(user);
         logger.info(`User created with ID: ${userId}`);
@@ -184,6 +187,11 @@ async function main() {
         logger.info(`Fetched Feedback for appointment ID: ${fetchedFeedback.appointment_id}`);
         const allFeedbacks = await feedbackNeonRepo.getAll();
         logger.info(`Total Feedbacks in database: ${allFeedbacks.length}`);
+        const offerId = await offerNeonRepo.create(offer);
+        logger.info(`Offer created with ID: ${offerId}`);
+        const fetchedOffer = await offerNeonRepo.getById(offerId);
+        logger.info(`Fetched Offer with title : ${fetchedOffer}`);
+
 
     } catch (err) {
         logger.error("Error during repository operations", err);

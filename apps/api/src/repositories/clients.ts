@@ -103,6 +103,74 @@ export async function listClients(opts: {
   };
 }
 
+/** Which of these phone numbers already belong to an active client. */
+export async function findExistingPhones(phones: string[]): Promise<Set<string>> {
+  const found = new Set<string>();
+  for (let i = 0; i < phones.length; i += 200) {
+    const { data, error } = await getSupabase()
+      .from('clients')
+      .select('phone_e164')
+      .in('phone_e164', phones.slice(i, i + 200))
+      .is('deleted_at', null);
+    if (error) throw error;
+    for (const r of data) found.add(r.phone_e164 as string);
+  }
+  return found;
+}
+
+export interface BulkItem {
+  row: number;
+  input: ClientInput;
+}
+
+const toInsertRow = (input: ClientInput, consentAt: string) => ({
+  full_name: input.fullName,
+  phone_e164: input.phoneE164,
+  instagram_handle: input.instagramHandle,
+  email: input.email,
+  source: input.source,
+  whatsapp_consent_at: input.whatsappConsent ? consentAt : null,
+  notes: input.notes,
+});
+
+/** Inserts in batches. If a batch is rejected, its rows are retried one by one. */
+export async function insertClientsBulk(items: BulkItem[]) {
+  const created: { row: number; id: string }[] = [];
+  const failed: { row: number; reason: string }[] = [];
+  const consentAt = new Date().toISOString();
+  const supabase = getSupabase();
+
+  for (let i = 0; i < items.length; i += 200) {
+    const batch = items.slice(i, i + 200);
+    const { data, error } = await supabase
+      .from('clients')
+      .insert(batch.map((b) => toInsertRow(b.input, consentAt)))
+      .select('id');
+    if (!error && data) {
+      data.forEach((d, idx) => created.push({ row: batch[idx]!.row, id: d.id as string }));
+      continue;
+    }
+    for (const item of batch) {
+      const { data: one, error: oneError } = await supabase
+        .from('clients')
+        .insert(toInsertRow(item.input, consentAt))
+        .select('id')
+        .single();
+      if (!oneError && one) created.push({ row: item.row, id: one.id as string });
+      else {
+        failed.push({
+          row: item.row,
+          reason:
+            oneError?.code === '23505'
+              ? 'A client with this phone number already exists.'
+              : 'Could not save this row.',
+        });
+      }
+    }
+  }
+  return { created, failed };
+}
+
 export async function getClient(id: string): Promise<Client | null> {
   const { data, error } = await getSupabase()
     .from('clients')

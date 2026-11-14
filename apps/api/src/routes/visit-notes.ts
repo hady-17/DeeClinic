@@ -3,18 +3,19 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { writeAudit } from '../lib/audit.js';
 import { AppError } from '../lib/errors.js';
-import { requireAuth, requireRole } from '../middleware/auth.js';
+import { requireAuth, requirePermission } from '../middleware/auth.js';
 import { getAppointment } from '../repositories/appointments.js';
 import { createNote, getNote, listNotes, updateNote } from '../repositories/visit-notes.js';
 
 export const visitNotesRouter = Router();
 
-const canEdit = requireRole('owner', 'manager', 'staff');
+const canRead = requirePermission('notes.read');
+const canEdit = requirePermission('notes.write');
 const idSchema = z.uuid();
 
 visitNotesRouter.use('/visit-notes', requireAuth);
 
-visitNotesRouter.get('/visit-notes', async (req, res) => {
+visitNotesRouter.get('/visit-notes', canRead, async (req, res) => {
   const appointmentId = idSchema.parse(req.query.appointmentId);
   res.json({ data: await listNotes(appointmentId) });
 });

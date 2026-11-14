@@ -1,3 +1,5 @@
+export * from './schemas/permissions';
+export * from './schemas/auth';
 export * from './schemas/clinic-settings';
 export * from './schemas/service';
 export * from './schemas/client';

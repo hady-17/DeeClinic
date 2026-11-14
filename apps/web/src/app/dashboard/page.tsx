@@ -1,5 +1,5 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { NavLinks } from '@/components/NavLinks';
 import { createClient } from '@/lib/supabase/server';
 
 async function signOut() {
@@ -26,20 +26,7 @@ export default async function DashboardPage() {
         </form>
       </header>
       <p className="text-stone-600">Signed in as {user?.email}.</p>
-      <nav className="flex gap-4">
-        <Link href="/calendar" className="underline">
-          Calendar
-        </Link>
-        <Link href="/clients" className="underline">
-          Clients
-        </Link>
-        <Link href="/services" className="underline">
-          Services
-        </Link>
-        <Link href="/settings" className="underline">
-          Clinic settings
-        </Link>
-      </nav>
+      <NavLinks />
       <section className="rounded-xl border border-dashed border-stone-300 p-8 text-center text-stone-500">
         Nothing here yet. Appointments, clients and payments arrive in the next phases.
       </section>

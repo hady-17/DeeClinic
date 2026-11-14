@@ -1,6 +1,9 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+// Pages anyone can open without being signed in.
+const PUBLIC_PATHS = ['/login', '/forgot-password', '/reset-password'];
+
 // Next 16 "proxy" (formerly middleware): refreshes the session and guards routes.
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -24,11 +27,14 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isLogin = request.nextUrl.pathname.startsWith('/login');
-  if (!user && !isLogin) {
+  const path = request.nextUrl.pathname;
+  const isPublic = PUBLIC_PATHS.some((p) => path.startsWith(p));
+  if (!user && !isPublic) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
-  if (user && isLogin) {
+  // A signed-in person has no reason to see the login form. The reset page stays open,
+  // because the emailed link signs the person in before they choose a new password.
+  if (user && path.startsWith('/login')) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
   return response;

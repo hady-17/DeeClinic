@@ -31,7 +31,7 @@ The architecture should be simple to run, inexpensive at this scale, and careful
 flowchart LR
   Owner["Owner<br/>laptop, tablet, phone"] --> Web["Web app<br/>Next.js on Vercel"]
   Web -->|"HTTPS + session token"| API["API<br/>Express on Vercel functions"]
-  Web -->|"login only"| Auth["Supabase Auth"]
+  API -->|"login, reset, user admin"| Auth["Supabase Auth"]
   API -->|"verify token"| Auth
   API --> DB[("Supabase Postgres")]
   Cron["Vercel Cron<br/>daily"] -->|"CRON_SECRET"| API
@@ -111,10 +111,27 @@ Inbound messages use the same endpoint. A "STOP" reply marks the client as opted
 
 ### 5.5 Login
 
-1. The web app calls Supabase Auth directly with the owner's email and password.
-2. Supabase returns an access token.
-3. The web app sends the token as a bearer token on each API call.
-4. The API verifies the token with Supabase, then loads the owner's profile and role.
+1. The web app sends the email and password to `POST /api/v1/auth/login`.
+2. The API throttles the attempt (30 per 15 minutes per address, 5 per 15 minutes per account), checks the password with Supabase Auth, and refuses accounts that have no profile or are deactivated.
+3. On success the API returns the Supabase session. The web app stores it with `setSession`, and sends the access token as a bearer token on each API call.
+4. On every request the API verifies the token with Supabase, then loads the profile and checks that the account is still active. Deactivating a user therefore takes effect on their next request.
+
+Failed and blocked logins are written to `audit_logs` with a short hash of the email, never the address itself.
+
+### 5.6 Password reset and invitations
+
+1. `POST /auth/forgot-password` always answers the same way, so it cannot be used to find out who has an account. If the email belongs to an active profile, Supabase sends a reset link. Limits: 3 per email and 10 per address, per hour.
+2. The link opens `/reset-password`, which signs the person in with the one-time session in the link and asks for a new password. An invitation from the owner uses the same page.
+3. `POST /auth/set-password` applies the password rules on the server (at least 10 characters, not a common password, not containing the person's email name). It only accepts a session that came from an emailed link, never an ordinary login session. It then signs the account out everywhere, and the person signs in with the new password.
+
+### 5.7 Managing users
+
+Only the owner can manage users (`users.manage`). The owner creates an account in one step, either by sending an invite email or by setting a password. The API creates the Supabase Auth user and its `profiles` row together, and removes the login again if the profile cannot be created, so the two never get out of step. Public sign-up must stay switched off in Supabase, and an account without a profile is refused even if one is created by mistake.
+
+- **Deactivate:** marks the profile inactive and bans the login. The person is locked out on their next request and cannot start a new session. History is kept.
+- **Reactivate:** reverses it.
+- **Delete:** only for accounts with no recorded activity (no bookings, notes or audit entries). Otherwise the owner must deactivate.
+- **Guards:** nobody can deactivate, delete or change the role of their own account, and the database refuses to remove or demote the last active owner.
 
 ## 6. API design
 
@@ -158,12 +175,18 @@ Inbound messages use the same endpoint. A "STOP" reply marks the client as opted
 | `GET /dashboard` | Summary for today |
 | `GET`, `POST /webhooks/whatsapp` | Meta verification, status events, and inbound messages. Signature checked |
 | `POST /jobs/send-reminders` | Daily job. Callable only with `CRON_SECRET` |
+| `POST /auth/login`, `/auth/forgot-password`, `/auth/set-password` | Sign in, request a reset link, set a password from an emailed link. No bearer token needed (set-password needs the link's session) |
+| `GET /me` | The signed-in user, their role, and their permissions |
+| `GET`, `POST /users`, `PATCH /users/:id` | User list, create or invite, change name or role. Owner only |
+| `POST /users/:id/deactivate`, `/users/:id/reactivate`, `DELETE /users/:id` | Lock out, restore, or permanently remove a user. Owner only |
 | `GET /health` | Health check |
 
 ## 7. Security
 
-- **Authentication:** every route requires a valid Supabase token, except the WhatsApp webhook (which requires a valid signature) and the job endpoint (which requires `CRON_SECRET`).
-- **Authorization:** for the MVP, the owner role can access all data. Each route checks the role, so adding staff roles later means changing one middleware.
+- **Authentication:** every route requires a valid Supabase token for an active account with a profile, except login and password reset, the WhatsApp webhook (which requires a valid signature), and the job endpoint (which requires `CRON_SECRET`).
+- **Authorization:** routes never check roles directly. They ask for a named permission (for example `clients.write` or `users.manage`), and one table in `packages/shared` maps each role (owner, manager, staff) to its permissions. Changing who can do what means editing that table. The web app hides links the person cannot use, but the API enforces every rule.
+- **Rate limiting:** counters live in Postgres, so they are shared by every serverless instance. A general limit applies per address, with tighter limits on login, password reset, user management and imports. Protective limits fail closed if the counter is unreachable, and the general limit fails open so a database blip does not stop the clinic working. A 429 carries a `Retry-After` header.
+- **Passwords:** minimum 10 characters, not on a list of common passwords, not containing the person's email name. Enforced by the API.
 - **Database access:** only the API uses the Supabase service role key, stored as an encrypted Vercel environment variable. The key never reaches the browser. Row-level security is enabled on every table with no policies for client roles, as a second layer of protection. See [04-database.md](04-database.md).
 - **Secrets:** Supabase URL and service key, WhatsApp access token, webhook app secret, and `CRON_SECRET`, all stored as environment variables. Rotate them whenever access changes.
 - **Input validation:** every endpoint validates its input against a schema. Queries go through the Supabase client, never through string concatenation.
@@ -206,7 +229,7 @@ Inbound messages use the same endpoint. A "STOP" reply marks the client as opted
 | Production | Clinic use | Real client data |
 
 - Database changes are written as migrations under version control and applied to staging first.
-- A push to the main branch deploys to production. Pull requests get Vercel preview deployments.
+- A push to the main branch deploys to production. Pull requests get Vercel preview deployments. Pull requests and `main` must pass the GitHub Actions checks first, and migrations run through a staged workflow. See [05-ci-cd.md](05-ci-cd.md).
 - **Rollback:** redeploy the previous Vercel deployment. For the database, write a new forward migration. Never edit a migration that has already been applied.
 - Configuration comes from environment variables, set separately for each environment.
 
@@ -268,6 +291,12 @@ Each decision is recorded in condensed ADR form.
 - **Decision:** all appointments share one calendar in the MVP. Overlaps are prevented by an exclusion constraint on the time range.
 - **Alternatives:** separate calendars for each staff member from the start.
 - **Consequences:** simple and correct for one owner. Adding staff later requires a `staff_id` column and an updated constraint. This is a planned migration.
+
+### ADR-008: Sign-in and password changes go through the API
+
+- **Decision:** the web app sends credentials to the API, which checks them with Supabase Auth, instead of calling Supabase Auth from the browser.
+- **Alternatives:** browser calls Supabase Auth directly (the original design); rely only on Supabase's own rate limits.
+- **Consequences:** the API can lock an account after repeated failures, log every attempt, refuse deactivated accounts before a session exists, and enforce its own password rules. The API briefly handles the password over HTTPS and never stores or logs it. The browser still holds the Supabase session and refreshes it with Supabase directly.
 
 ## 14. Open technical questions
 

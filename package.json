@@ -15,7 +15,8 @@
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "ci": "npm run typecheck && npm run lint && npm test && npm run build"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

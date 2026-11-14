@@ -5,6 +5,8 @@ const schema = z.object({
   PORT: z.coerce.number().default(4000),
   SUPABASE_URL: z.url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  /** Publishable key. Used only to verify user credentials, never for data access. */
+  SUPABASE_ANON_KEY: z.string().min(1),
   CRON_SECRET: z.string().min(16),
   WEB_ORIGIN: z.string().default('http://localhost:3000'),
   WHATSAPP_ACCESS_TOKEN: z.string().optional(),
@@ -20,7 +22,13 @@ let cached: Env | undefined;
 /** Parsed lazily so routes that need no secrets (like /health) work without them. */
 export function getEnv(): Env {
   if (!cached) {
-    const result = schema.safeParse(process.env);
+    const e = process.env;
+    // Supabase's newer names (SECRET / PUBLISHABLE) work as well as the older ones.
+    const result = schema.safeParse({
+      ...e,
+      SUPABASE_SERVICE_ROLE_KEY: e.SUPABASE_SERVICE_ROLE_KEY || e.SUPABASE_SECRET_KEY,
+      SUPABASE_ANON_KEY: e.SUPABASE_ANON_KEY || e.SUPABASE_PUBLISHABLE_KEY,
+    });
     if (!result.success) {
       const fields = result.error.issues.map((i) => i.path.join('.')).join(', ');
       throw new Error(`Invalid environment configuration: ${fields}`);

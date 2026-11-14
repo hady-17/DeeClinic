@@ -1,0 +1,6 @@
+# Minimal project config so the Supabase CLI (and the migrations workflow) can run
+# `supabase link` and `supabase db push` against the cloud project.
+project_id = "deeclinic"
+
+[db]
+major_version = 17

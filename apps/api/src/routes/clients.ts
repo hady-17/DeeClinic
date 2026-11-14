@@ -3,13 +3,14 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { writeAudit } from '../lib/audit.js';
 import { AppError } from '../lib/errors.js';
-import { requireAuth, requireRole } from '../middleware/auth.js';
+import { requireAuth, requirePermission } from '../middleware/auth.js';
 import { listClientHistory } from '../repositories/appointments.js';
 import { createClient, getClient, listClients, updateClient } from '../repositories/clients.js';
 
 export const clientsRouter = Router();
 
-const canEdit = requireRole('owner', 'manager', 'staff');
+const canRead = requirePermission('clients.read');
+const canEdit = requirePermission('clients.write');
 const idSchema = z.uuid();
 const listQuerySchema = z.object({
   q: z.string().max(100).optional(),
@@ -19,18 +20,18 @@ const listQuerySchema = z.object({
 
 clientsRouter.use('/clients', requireAuth);
 
-clientsRouter.get('/clients', async (req, res) => {
+clientsRouter.get('/clients', canRead, async (req, res) => {
   const query = listQuerySchema.parse(req.query);
   res.json(await listClients(query));
 });
 
-clientsRouter.get('/clients/:id', async (req, res) => {
+clientsRouter.get('/clients/:id', canRead, async (req, res) => {
   const client = await getClient(idSchema.parse(req.params.id));
   if (!client) throw AppError.notFound('Client not found.');
   res.json({ data: client });
 });
 
-clientsRouter.get('/clients/:id/history', async (req, res) => {
+clientsRouter.get('/clients/:id/history', canRead, async (req, res) => {
   const id = idSchema.parse(req.params.id);
   if (!(await getClient(id))) throw AppError.notFound('Client not found.');
   // Visits and notes now; payments and messages join this response in later phases.

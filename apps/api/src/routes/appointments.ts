@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { writeAudit } from '../lib/audit.js';
 import { AppError } from '../lib/errors.js';
 import { withIdempotency } from '../lib/idempotency.js';
-import { requireAuth, requireRole } from '../middleware/auth.js';
+import { requireAuth, requirePermission } from '../middleware/auth.js';
 import {
   completeAppointment,
   getAppointment,
@@ -24,7 +24,8 @@ import { getService } from '../repositories/services.js';
 
 export const appointmentsRouter = Router();
 
-const canEdit = requireRole('owner', 'manager', 'staff');
+const canRead = requirePermission('appointments.read');
+const canEdit = requirePermission('appointments.write');
 const idSchema = z.uuid();
 
 appointmentsRouter.use('/appointments', requireAuth);
@@ -41,12 +42,12 @@ async function loadOpen(id: string): Promise<Appointment> {
   return appt;
 }
 
-appointmentsRouter.get('/appointments', async (req, res) => {
+appointmentsRouter.get('/appointments', canRead, async (req, res) => {
   const { from, to } = appointmentRangeSchema.parse(req.query);
   res.json({ data: await listAppointments(from, to) });
 });
 
-appointmentsRouter.get('/appointments/:id', async (req, res) => {
+appointmentsRouter.get('/appointments/:id', canRead, async (req, res) => {
   const appt = await getAppointment(idSchema.parse(req.params.id));
   if (!appt) throw AppError.notFound('Appointment not found.');
   res.json({ data: appt });

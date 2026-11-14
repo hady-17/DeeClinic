@@ -282,6 +282,28 @@ create table audit_logs (
 );
 ```
 
+### 4.6 Authentication support
+
+Added by migration `auth_hardening`. Row-level security is enabled on all of it, with the same deny-all policy for `anon` and `authenticated`.
+
+```sql
+-- profiles gained:
+--   email           text         copy of the login email, for listing users (unique, case-insensitive)
+--   is_active       boolean      false means the account is locked out
+--   deactivated_at  timestamptz
+
+-- Counters for rate limiting. One row per key and fixed time window.
+create table rate_limits (
+  key           text        not null,   -- a hash, so emails and addresses are not stored in clear
+  window_start  timestamptz not null,
+  hits          int         not null default 0,
+  primary key (key, window_start)
+);
+```
+
+- **`rate_limit_hit(key, window_seconds)`** counts one hit atomically and returns the total for the current window. It also deletes rows older than a day, now and then. Only the service role may run it.
+- **`protect_last_owner` trigger** on `profiles` refuses to deactivate, demote or delete the last active owner, so the clinic can never be locked out of its own user management.
+
 ## 5. Integrity rules
 
 | Rule | Enforced by |
@@ -296,6 +318,8 @@ create table audit_logs (
 | End time after start time | Check constraint on `appointments` |
 | Exchange rates are never edited | Application rule. Changes are inserts |
 | Clinical and financial records are never deleted | Application rule. Use void or cancel |
+| The clinic always keeps one active owner | `protect_last_owner` trigger on `profiles` |
+| A user who has recorded activity cannot be deleted | Foreign keys to `profiles`. Deactivate instead |
 
 ## 6. Functions
 

@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { writeAudit } from '../lib/audit.js';
 import { AppError } from '../lib/errors.js';
-import { requireAuth, requireRole } from '../middleware/auth.js';
+import { requireAuth, requirePermission } from '../middleware/auth.js';
 import {
   createService,
   getService,
@@ -13,12 +13,13 @@ import {
 
 export const servicesRouter = Router();
 
-const canEdit = requireRole('owner', 'manager');
+const canRead = requirePermission('services.read');
+const canEdit = requirePermission('services.write');
 const idSchema = z.uuid();
 
 servicesRouter.use('/services', requireAuth);
 
-servicesRouter.get('/services', async (req, res) => {
+servicesRouter.get('/services', canRead, async (req, res) => {
   const includeInactive = z.stringbool().optional().parse(req.query.includeInactive) ?? false;
   res.json({ data: await listServices(includeInactive) });
 });

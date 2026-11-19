@@ -39,6 +39,7 @@ export default function SettingsPage() {
           address: f.get('address'),
           timezone: f.get('timezone'),
           reminderSendTime: f.get('reminderSendTime'),
+          noShowUsesSession: f.get('noShowUsesSession') === 'on',
         }),
       });
       setSettings(r.data);
@@ -110,6 +111,19 @@ export default function SettingsPage() {
               <input id="reminderSendTime" name="reminderSendTime" type="time" required defaultValue={settings.reminderSendTime} className={field} aria-describedby="reminderSendTime-error" />
               {err('reminderSendTime')}
             </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" name="noShowUsesSession" defaultChecked={Boolean(settings.noShowUsesSession)} className="mt-1" />
+              <span>
+                A no-show on a package visit uses up one of the client&apos;s sessions.
+                <span className="block text-stone-500">
+                  Off by default. Cancelling never uses a session. Turning this on only affects no-shows
+                  marked from now on.
+                </span>
+              </span>
+            </label>
           </div>
 
           {message && (

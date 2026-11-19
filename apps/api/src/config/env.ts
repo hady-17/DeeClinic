@@ -8,6 +8,12 @@ const schema = z.object({
   /** Publishable key. Used only to verify user credentials, never for data access. */
   SUPABASE_ANON_KEY: z.string().min(1),
   CRON_SECRET: z.string().min(16),
+  /**
+   * A secret mixed into every passcode before hashing. It lives only in the environment, so a
+   * leaked database alone cannot be used to guess six-digit passcodes. If it is lost or changed,
+   * every passcode stops working and each owner and manager sets a new one.
+   */
+  PASSCODE_PEPPER: z.string().min(32).optional(),
   WEB_ORIGIN: z.string().default('http://localhost:3000'),
   WHATSAPP_ACCESS_TOKEN: z.string().optional(),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),

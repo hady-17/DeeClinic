@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ClientForm } from '@/components/ClientForm';
 import { ClientHistory } from '@/components/ClientHistory';
+import { ClientMoney } from '@/components/ClientMoney';
 import { api, ApiError } from '@/lib/api';
 
 export default function ClientPage() {
@@ -51,6 +52,7 @@ export default function ClientPage() {
             }}
           />
           {saved && <p role="status" className="text-sm text-green-700">Client saved.</p>}
+          <ClientMoney clientId={client.id} />
           <ClientHistory clientId={client.id} />
         </>
       )}

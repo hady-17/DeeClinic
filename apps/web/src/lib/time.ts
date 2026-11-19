@@ -49,5 +49,11 @@ export const formatDayLong = (day: string) =>
 export const formatDayShort = (day: string) =>
   formatInTimeZone(new Date(`${day}T12:00:00Z`), 'UTC', 'EEE d MMM');
 
-export const formatDateTime = (iso: string, tz: string) =>
+export const formatDate = (iso: string, tz: string) => formatInTimeZone(iso, tz, 'd MMM yyyy');
+
+/** A package's expiry is the first moment it is invalid, so the last valid day is one minute earlier. */
+export const lastValidDay = (expiresAt: string, tz: string) =>
+  formatDate(new Date(new Date(expiresAt).getTime() - 60_000).toISOString(), tz);
+
+export const formatDateTime =(iso: string, tz: string) =>
   formatInTimeZone(iso, tz, 'EEE d MMM, HH:mm');

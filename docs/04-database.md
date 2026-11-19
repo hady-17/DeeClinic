@@ -304,6 +304,33 @@ create table rate_limits (
 - **`rate_limit_hit(key, window_seconds)`** counts one hit atomically and returns the total for the current window. It also deletes rows older than a day, now and then. Only the service role may run it.
 - **`protect_last_owner` trigger** on `profiles` refuses to deactivate, demote or delete the last active owner, so the clinic can never be locked out of its own user management.
 
+### 4.7 Packages and payments
+
+Added by migration `packages_and_payments`.
+
+- `clinic_settings.no_show_uses_session boolean not null default false`: whether a no-show on a package visit uses a session.
+- **`complete_appointment`** now also sets the package to `completed` when its last session is used.
+- **`mark_no_show(appointment, consume_session)`** marks the no-show and, if asked and a session is left, records its use.
+- **`record_payment(...)`** locks the target row, checks the total against what is owed, and inserts the payment.
+- **`sell_package(...)`** inserts the package from a template and, optionally, its first payment, in one transaction.
+- All four are callable only by the service role. Indexes were added on `appointments.client_package_id`, `payments.appointment_id` and `payments.client_package_id`.
+
+A package's `status` column only records `active`, `completed` or `cancelled`. Whether it has expired is worked out from `expires_at` when it is read, so it is correct without a nightly job.
+
+### 4.8 Passcodes
+
+Added by migration `passcodes`.
+
+```sql
+create table passcodes (
+  user_id     uuid primary key references profiles(id) on delete cascade,
+  hash        text not null,       -- scrypt$N$r$p$salt$key. Never the passcode itself
+  updated_at  timestamptz not null default now()
+);
+```
+
+Row-level security is on, with the same deny-all policy as every other table. Wrong-attempt counts are kept in `rate_limits`, not here.
+
 ## 5. Integrity rules
 
 | Rule | Enforced by |
@@ -512,5 +539,5 @@ On a deletion request, the client's name and phone are cleared, and `deleted_at`
 
 1. Should one appointment cover more than one service, for combined treatments? The current design allows one service per appointment.
 2. Should packages ever cover more than one service? The current design ties a package to one service.
-3. Should a no-show use up a package session? The current function does not consume a session for no-shows.
+3. Should a no-show use up a package session? Now a clinic setting, off by default. The owner can change it on the settings screen. The owner still needs to choose the rule for the clinic.
 4. What are the retention periods for visit notes, messages, and webhook events?

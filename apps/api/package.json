@@ -8,7 +8,8 @@
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e-auth": "tsx --env-file=../../.env scripts/e2e-auth.ts"
+    "test:e2e-auth": "tsx --env-file=../../.env scripts/e2e-auth.ts",
+    "test:e2e-phase2": "tsx --env-file=../../.env scripts/e2e-phase2.ts"
   },
   "dependencies": {
     "@deeclinic/shared": "*",

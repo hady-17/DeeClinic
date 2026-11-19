@@ -9,8 +9,11 @@ const LINKS: { href: string; label: string; needs: Permission }[] = [
   { href: '/calendar', label: 'Calendar', needs: 'appointments.read' },
   { href: '/clients', label: 'Clients', needs: 'clients.read' },
   { href: '/services', label: 'Services', needs: 'services.read' },
+  { href: '/packages', label: 'Packages', needs: 'packages.read' },
+  { href: '/rates', label: 'Exchange rate', needs: 'rates.read' },
   { href: '/settings', label: 'Clinic settings', needs: 'settings.read' },
   { href: '/users', label: 'Users', needs: 'users.manage' },
+  { href: '/account', label: 'My passcode', needs: 'payments.void' },
 ];
 
 /** Shows only the links this person is allowed to use. The API enforces the same rules. */

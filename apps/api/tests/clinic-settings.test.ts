@@ -9,6 +9,7 @@ const valid = {
   address: 'Beirut',
   timezone: 'Asia/Beirut',
   reminderSendTime: '10:00',
+  noShowUsesSession: false,
 };
 
 describe('clinic settings schema', () => {

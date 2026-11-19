@@ -269,6 +269,7 @@ function DayColumn({
             <span className="block truncate font-medium">{a.clientName}</span>
             <span className="block truncate">
               {timeOf(a.startAt, tz)} · {a.serviceName}
+              {a.clientPackageId && ' · pkg'}
             </span>
           </button>
         );

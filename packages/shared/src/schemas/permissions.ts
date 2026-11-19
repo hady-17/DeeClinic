@@ -23,6 +23,14 @@ export const PERMISSIONS = [
   'appointments.write',
   'notes.read',
   'notes.write',
+  'packages.read',
+  'packages.sell',
+  'packages.manage',
+  'payments.read',
+  'payments.record',
+  'payments.void',
+  'rates.read',
+  'rates.write',
   'users.manage',
 ] as const;
 
@@ -37,13 +45,23 @@ const STAFF: readonly Permission[] = [
   'appointments.write',
   'notes.read',
   'notes.write',
+  'packages.read',
+  'packages.sell',
+  'payments.read',
+  'payments.record',
+  'rates.read',
 ];
 
+// Managers set up the catalog and handle corrections to money: price lists, package
+// offers, exchange rates and voiding a payment.
 const MANAGER: readonly Permission[] = [
   ...STAFF,
   'settings.write',
   'services.write',
   'clients.import',
+  'packages.manage',
+  'payments.void',
+  'rates.write',
 ];
 
 export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {

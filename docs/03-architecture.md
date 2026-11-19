@@ -133,6 +133,25 @@ Only the owner can manage users (`users.manage`). The owner creates an account i
 - **Delete:** only for accounts with no recorded activity (no bookings, notes or audit entries). Otherwise the owner must deactivate.
 - **Guards:** nobody can deactivate, delete or change the role of their own account, and the database refuses to remove or demote the last active owner.
 
+### 5.8 Packages and payments
+
+- **Selling:** `sell_package` copies the template's sessions, price and validity into the sale and sets the expiry to the end of the last valid day in the clinic's timezone. A payment taken at the same moment is saved in the same transaction. Editing the template later never changes a package already sold.
+- **Booking on a package:** the visit must be for the package's service, fall before it expires, and there must be a session not already promised to another booked visit. A package visit has price 0, so it can never be paid for twice.
+- **Using a session:** `complete_appointment` locks the package row, checks what is left, records the use, and closes the package when the last session goes. Two completions at the same moment cannot use the last session twice.
+- **Cancelling** never uses a session. **A no-show** uses one only if the clinic setting `no_show_uses_session` is on (off by default), and only if one is left.
+- **Taking a payment:** `record_payment` locks the visit or package, adds up what is already paid (void payments excluded), and refuses anything above what is owed, with a 5 cent tolerance for LBP rounding. LBP is converted at the current rate, rounded to cents (half up), and both the rate and the USD value are stored with the payment, so past figures never change when the rate does.
+- **Voiding** keeps the payment with who, when and why. It stops counting towards what is paid, so the amount can be taken again. Payments are never deleted. It needs the permission `payments.void` (owner and manager) **and** the signed-in person's own 6-digit passcode, so a stolen or left-open login session cannot void money by itself. See "Passcodes" below.
+- **Retries:** selling a package and recording a payment accept an `Idempotency-Key`, so a double click or a flaky connection cannot charge twice.
+
+### 5.9 Passcodes
+
+A passcode is a personal 6-digit number that owners and managers enter to confirm a sensitive action. Voiding a payment is the first use. The same check can protect other actions later, such as changing the exchange rate or deleting a user.
+
+- **Setting one:** `PUT /me/passcode` asks for the account password again, so someone at an unlocked screen cannot set their own. Easy passcodes (111111, 123456, 121212 and similar) are refused.
+- **Storing one:** only a salted scrypt hash, in the `passcodes` table. The passcode is first mixed with a secret held in the server environment (`PASSCODE_PEPPER`). A million possible passcodes would be guessed in seconds from a leaked database, but not without that secret. If the secret is lost or changed, every passcode stops working and each person sets a new one.
+- **Using one:** the API checks the passcode of the person who is signed in. It is not a way for a manager to approve a staff member's action. Every attempt counts: five in 15 minutes locks the passcode for the rest of that window, even for the right number. A wrong passcode returns 403, not 401, so the web app does not take it for an ended session.
+- **Audit:** `passcode.set` (never the number), `payment.void` (marked as approved with a passcode) and `payment.void_denied` for each wrong or locked-out attempt.
+
 ## 6. API design
 
 - **Base path:** `/api/v1`. JSON only.
@@ -166,11 +185,14 @@ Only the owner can manage users (`users.manage`). The owner creates an account i
 | `POST /appointments/:id/complete` | Complete a visit and deduct a package session |
 | `POST /appointments/:id/no-show` | Mark a no-show |
 | `POST /appointments/:id/cancel` | Cancel and free the slot |
-| `GET`, `POST /package-templates` | Package offers |
-| `POST /client-packages` | Sell a package to a client |
-| `GET`, `POST /payments` | Record and list payments |
-| `POST /payments/:id/void` | Void a payment. There are no deletes |
-| `GET`, `POST /exchange-rates` | Current rate and rate history |
+| `GET`, `POST /package-templates`, `PATCH /package-templates/:id` | Package offers. Changes apply to new sales only |
+| `POST /client-packages` | Sell a package to a client, optionally taking a first payment in the same transaction |
+| `GET /clients/:id/packages`, `GET /client-packages/:id` | A client's packages, with sessions used, left and free to book, and what has been paid |
+| `GET /payments?clientId=`, `?appointmentId=`, `?clientPackageId=` | List payments |
+| `POST /payments` | Record a payment for one appointment or one package. LBP is converted at the current rate and the rate is stored. Refuses more than is owed |
+| `POST /payments/:id/void` | Void a payment, with a reason and the caller's passcode. There are no deletes |
+| `GET`, `PUT /me/passcode` | Whether the caller has a passcode, and set or change it (needs the account password). Owner and manager only |
+| `GET`, `POST /exchange-rates` | Current rate and rate history. A new rate is a new row, in effect now. A change of more than 20% must be confirmed |
 | `GET /messages` | Message log |
 | `GET /dashboard` | Summary for today |
 | `GET`, `POST /webhooks/whatsapp` | Meta verification, status events, and inbound messages. Signature checked |

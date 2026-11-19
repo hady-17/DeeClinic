@@ -1,3 +1,4 @@
+import { logger } from './logger.js';
 import { getSupabase } from './supabase.js';
 
 interface AuditEntry {
@@ -26,6 +27,15 @@ export async function writeAuditBatch(entries: AuditEntry[]): Promise<void> {
       .from('audit_logs')
       .insert(entries.slice(i, i + 500).map(toRow));
     if (error) throw error;
+  }
+}
+
+/** For security events that must be recorded but must not break the request they describe. */
+export async function writeAuditQuietly(entry: AuditEntry): Promise<void> {
+  try {
+    await writeAudit(entry);
+  } catch (err) {
+    logger.error({ err, action: entry.action }, 'Could not write audit entry');
   }
 }
 

@@ -3,6 +3,7 @@
 import { OPEN_STATUSES, type Appointment } from '@deeclinic/shared';
 import Link from 'next/link';
 import { useState } from 'react';
+import { AppointmentPayments } from '@/components/AppointmentPayments';
 import { VisitNotes } from '@/components/VisitNotes';
 import { api } from '@/lib/api';
 import { formatDateTime, timeOf } from '@/lib/time';
@@ -68,7 +69,7 @@ export function AppointmentDetails({
           {formatDateTime(a.startAt, tz)} to {timeOf(a.endAt, tz)}
         </dd>
         <dt className="text-stone-500">Price</dt>
-        <dd>{usd.format(a.priceUsd)}</dd>
+        <dd>{a.clientPackageId ? 'Package visit' : usd.format(a.priceUsd)}</dd>
         <dt className="text-stone-500">Status</dt>
         <dd>{STATUS_LABEL[a.status]}</dd>
         {a.notes && (
@@ -84,6 +85,8 @@ export function AppointmentDetails({
           {error}
         </p>
       )}
+
+      <AppointmentPayments appointment={a} />
 
       <VisitNotes appointmentId={a.id} canAdd={a.status !== 'cancelled'} />
 

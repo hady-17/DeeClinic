@@ -1,10 +1,10 @@
 'use client';
 
-import type { Appointment, Client, ClientPage, Service } from '@deeclinic/shared';
+import type { Appointment, Client, ClientPackage, ClientPage, Service } from '@deeclinic/shared';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api, ApiError, describeError, newKey } from '@/lib/api';
-import { dayOf, formatDateTime, timeOf, zonedToUtc } from '@/lib/time';
+import { dayOf, formatDateTime, lastValidDay, timeOf, zonedToUtc } from '@/lib/time';
 
 const field = 'w-full rounded-md border border-stone-300 px-3 py-2';
 const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
@@ -39,8 +39,23 @@ export function AppointmentForm({ tz, appointment, initial, onSaved, onCancel }:
   const [results, setResults] = useState<Client[]>([]);
   const [searched, setSearched] = useState(false);
 
+  // The client's packages. null in packageChoice means "not touched yet": use the first one that fits.
+  const [packages, setPackages] = useState<ClientPackage[]>([]);
+  const [packageChoice, setPackageChoice] = useState<string | null>(null);
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (editing || !client) return;
+    let cancelled = false;
+    api<{ data: ClientPackage[] }>(`/clients/${client.id}/packages`)
+      .then((r) => !cancelled && setPackages(r.data))
+      .catch(() => !cancelled && setPackages([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [client, editing]);
 
   useEffect(() => {
     api<{ data: Service[] }>('/services')
@@ -75,6 +90,16 @@ export function AppointmentForm({ tz, appointment, initial, onSaved, onCancel }:
   }, [search, client, editing]);
 
   const service = services?.find((s) => s.id === serviceId);
+
+  // Packages that could pay for this visit: same client and service, still valid, a session free
+  const eligible = editing
+    ? []
+    : packages.filter(
+        (p) => p.clientId === client?.id && p.serviceId === serviceId && p.status === 'active' && p.sessionsAvailableToBook > 0,
+      );
+  const chosenPackageId = packageChoice === null ? (eligible[0]?.id ?? '') : packageChoice;
+  const usingPackage = eligible.some((p) => p.id === chosenPackageId);
+
   const endPreview =
     service && date && time
       ? timeOf(new Date(zonedToUtc(date, time, tz).getTime() + service.durationMinutes * 60_000).toISOString(), tz)
@@ -98,7 +123,13 @@ export function AppointmentForm({ tz, appointment, initial, onSaved, onCancel }:
         await api('/appointments', {
           method: 'POST',
           headers: { 'Idempotency-Key': idempotencyKey },
-          body: JSON.stringify({ clientId: client.id, serviceId, startAt, notes }),
+          body: JSON.stringify({
+            clientId: client.id,
+            serviceId,
+            startAt,
+            notes,
+            clientPackageId: usingPackage ? chosenPackageId : null,
+          }),
         });
       }
       onSaved();
@@ -171,7 +202,13 @@ export function AppointmentForm({ tz, appointment, initial, onSaved, onCancel }:
 
       <div className="space-y-1">
         <label htmlFor="service" className="text-sm font-medium">Service</label>
-        <select id="service" value={serviceId} onChange={(e) => setServiceId(e.target.value)} className={field}>
+        <select
+          id="service"
+          value={serviceId}
+          onChange={(e) => setServiceId(e.target.value)}
+          disabled={Boolean(appointment?.clientPackageId)}
+          className={field}
+        >
           <option value="">{services === null ? 'Loading…' : 'Choose a service'}</option>
           {(services ?? []).map((s) => (
             <option key={s.id} value={s.id}>
@@ -188,7 +225,31 @@ export function AppointmentForm({ tz, appointment, initial, onSaved, onCancel }:
             first.
           </p>
         )}
+        {appointment?.clientPackageId && (
+          <p className="text-sm text-stone-600">This visit is booked on a package, so its service cannot change.</p>
+        )}
       </div>
+
+      {eligible.length > 0 && (
+        <fieldset className="space-y-2 rounded-md border border-stone-200 p-3">
+          <legend className="px-1 text-sm font-medium">Payment for this visit</legend>
+          {eligible.map((p) => (
+            <label key={p.id} className="flex items-start gap-2 text-sm">
+              <input type="radio" name="pkg" checked={chosenPackageId === p.id} onChange={() => setPackageChoice(p.id)} className="mt-1" />
+              <span>
+                Use the package <strong>{p.name}</strong>
+                <span className="block text-stone-500">
+                  {p.sessionsAvailableToBook} session{p.sessionsAvailableToBook === 1 ? '' : 's'} left to book · valid until {lastValidDay(p.expiresAt, tz)}
+                </span>
+              </span>
+            </label>
+          ))}
+          <label className="flex items-start gap-2 text-sm">
+            <input type="radio" name="pkg" checked={chosenPackageId === ''} onChange={() => setPackageChoice('')} className="mt-1" />
+            <span>Pay for this visit separately{service && ` (${usd.format(service.priceUsd)})`}</span>
+          </label>
+        </fieldset>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1">
@@ -203,7 +264,7 @@ export function AppointmentForm({ tz, appointment, initial, onSaved, onCancel }:
       {endPreview && (
         <p className="text-sm text-stone-600">
           Ends at {endPreview}
-          {service && ` · ${usd.format(service.priceUsd)}`}
+          {service && (usingPackage || appointment?.clientPackageId ? ' · covered by the package' : ` · ${usd.format(service.priceUsd)}`)}
         </p>
       )}
 

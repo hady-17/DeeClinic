@@ -8,6 +8,7 @@ export type ErrorCode =
   | 'BUSINESS_RULE'
   | 'RATE_LIMITED'
   | 'ACCOUNT_DISABLED'
+  | 'PASSCODE_INVALID'
   | 'INTERNAL';
 
 export class AppError extends Error {
@@ -41,6 +42,10 @@ export class AppError extends Error {
   }
   static tooManyRequests(message = 'Too many attempts. Please wait a few minutes and try again.') {
     return new AppError(429, 'RATE_LIMITED', message);
+  }
+  /** 403, never 401: a wrong passcode must not make the web app think the session ended. */
+  static invalidPasscode(message = 'Incorrect passcode.') {
+    return new AppError(403, 'PASSCODE_INVALID', message);
   }
   static accountDisabled(message = 'This account has been deactivated. Contact the clinic owner.') {
     return new AppError(403, 'ACCOUNT_DISABLED', message);

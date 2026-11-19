@@ -16,10 +16,13 @@ import {
   getAppointment,
   insertAppointment,
   listAppointments,
+  markNoShow,
   patchAppointment,
   setStatus,
 } from '../repositories/appointments.js';
+import { getClientPackage } from '../repositories/client-packages.js';
 import { getClient } from '../repositories/clients.js';
+import { getClinicSettings } from '../repositories/clinic-settings.js';
 import { getService } from '../repositories/services.js';
 
 export const appointmentsRouter = Router();
@@ -40,6 +43,34 @@ async function loadOpen(id: string): Promise<Appointment> {
     throw AppError.businessRule(`This appointment is already ${appt.status.replace('_', ' ')}.`);
   }
   return appt;
+}
+
+/**
+ * A visit can be booked against a package only if the package belongs to this client, covers
+ * this service, is still valid on the visit date, and has a session not already promised to
+ * another booked visit.
+ */
+async function assertPackageUsable(
+  packageId: string,
+  visit: { clientId: string; serviceId: string; startAt: string },
+  ownBookingCounted = false,
+) {
+  const pkg = await getClientPackage(packageId);
+  if (!pkg || pkg.clientId !== visit.clientId) throw AppError.notFound('Package not found for this client.');
+  if (pkg.serviceId !== visit.serviceId) {
+    throw AppError.businessRule(`This package is for ${pkg.serviceName}, not the service chosen.`);
+  }
+  if (pkg.status !== 'active') {
+    throw AppError.businessRule(`This package is ${pkg.status}, so it cannot be used for a booking.`);
+  }
+  if (new Date(visit.startAt) >= new Date(pkg.expiresAt)) {
+    throw AppError.businessRule('This package expires before the chosen date.');
+  }
+  // A booking being moved already holds one of the sessions, so it does not need a second one.
+  const available = pkg.sessionsAvailableToBook + (ownBookingCounted ? 1 : 0);
+  if (available <= 0) {
+    throw AppError.businessRule('All remaining sessions of this package are already booked.');
+  }
 }
 
 appointmentsRouter.get('/appointments', canRead, async (req, res) => {
@@ -65,12 +96,25 @@ appointmentsRouter.post('/appointments', canEdit, async (req, res) => {
     if (!service.isActive) throw AppError.businessRule('This service is no longer offered.');
 
     const startAt = new Date(input.startAt).toISOString();
+
+    // Booked against a package: the package pays for the visit, so its own price is 0
+    let priceUsd = service.priceUsd;
+    if (input.clientPackageId) {
+      await assertPackageUsable(input.clientPackageId, {
+        clientId: client.id,
+        serviceId: service.id,
+        startAt,
+      });
+      priceUsd = 0;
+    }
+
     const created = await insertAppointment({
       clientId: client.id,
       serviceId: service.id,
+      clientPackageId: input.clientPackageId ?? null,
       startAt,
       endAt: endFrom(startAt, service.durationMinutes),
-      priceUsd: service.priceUsd,
+      priceUsd,
       notes: input.notes,
       createdBy: req.user!.id,
     });
@@ -96,6 +140,18 @@ appointmentsRouter.patch('/appointments/:id', canEdit, async (req, res) => {
   if (service && !service.isActive) throw AppError.businessRule('This service is no longer offered.');
 
   const startAt = patch.startAt ? new Date(patch.startAt).toISOString() : before.startAt;
+
+  if (before.clientPackageId) {
+    // A package visit stays on its package's service, and must still fall inside its validity
+    if (serviceChanged) {
+      throw AppError.businessRule('A visit booked on a package keeps the package\'s service.');
+    }
+    await assertPackageUsable(
+      before.clientPackageId,
+      { clientId: before.clientId, serviceId: before.serviceId, startAt },
+      true,
+    );
+  }
   // Keep the booked length unless the service changed
   const minutes = service
     ? service.durationMinutes
@@ -140,23 +196,41 @@ appointmentsRouter.post('/appointments/:id/complete', canEdit, async (req, res) 
   res.json({ data: after });
 });
 
-for (const [path, status, action] of [
-  ['no-show', 'no_show', 'appointment.no_show'],
-  ['cancel', 'cancelled', 'appointment.cancel'],
-] as const) {
-  appointmentsRouter.post(`/appointments/:id/${path}`, canEdit, async (req, res) => {
-    const id = idSchema.parse(req.params.id);
-    const before = await loadOpen(id);
-    const after = await setStatus(id, [...OPEN_STATUSES], status);
-    if (!after) throw AppError.businessRule('This appointment can no longer be changed.');
-    await writeAudit({
-      actorId: req.user!.id,
-      action,
-      entity: 'appointments',
-      entityId: id,
-      before,
-      after,
-    });
-    res.json({ data: after });
+/**
+ * A no-show frees the slot. Whether it also uses up a package session follows the clinic
+ * setting, which the owner can change. The response says if a session was used.
+ */
+appointmentsRouter.post('/appointments/:id/no-show', canEdit, async (req, res) => {
+  const id = idSchema.parse(req.params.id);
+  const before = await loadOpen(id);
+  const settings = await getClinicSettings();
+  const consumed = await markNoShow(id, Boolean(settings?.noShowUsesSession));
+  const after = await getAppointment(id);
+  await writeAudit({
+    actorId: req.user!.id,
+    action: 'appointment.no_show',
+    entity: 'appointments',
+    entityId: id,
+    before,
+    after,
+    ...(consumed && { after: { ...after, packageSessionUsed: true } }),
   });
-}
+  res.json({ data: after, sessionConsumed: consumed });
+});
+
+// Cancelling never uses a package session. The visit simply goes back to being available.
+appointmentsRouter.post('/appointments/:id/cancel', canEdit, async (req, res) => {
+  const id = idSchema.parse(req.params.id);
+  const before = await loadOpen(id);
+  const after = await setStatus(id, [...OPEN_STATUSES], 'cancelled');
+  if (!after) throw AppError.businessRule('This appointment can no longer be changed.');
+  await writeAudit({
+    actorId: req.user!.id,
+    action: 'appointment.cancel',
+    entity: 'appointments',
+    entityId: id,
+    before,
+    after,
+  });
+  res.json({ data: after });
+});

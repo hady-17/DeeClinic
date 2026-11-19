@@ -22,6 +22,8 @@ export const clinicSettingsInputSchema = z.object({
   address: z.preprocess(blankToNull, z.string().trim().max(300).nullable()),
   timezone: z.string().refine(isValidTimeZone, 'Unknown timezone'),
   reminderSendTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM, 24-hour'),
+  /** Whether a no-show on a package visit uses up one of the client's sessions. */
+  noShowUsesSession: z.boolean(),
 });
 
 export type ClinicSettingsInput = z.infer<typeof clinicSettingsInputSchema>;

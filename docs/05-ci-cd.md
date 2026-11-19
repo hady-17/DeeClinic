@@ -61,9 +61,9 @@ Runs for the same branch cancel each other, so only the newest push is checked.
 | Root Directory | `apps/web` | `apps/api` |
 | Framework | Next.js | Other |
 | Include files outside the root directory | On (needed for `packages/shared`) | On |
-| Environment variables | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_API_URL` | `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `SUPABASE_PUBLISHABLE_KEY`, `CRON_SECRET`, `WEB_ORIGIN`, WhatsApp variables later |
+| Environment variables | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_API_URL` | `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `SUPABASE_PUBLISHABLE_KEY`, `CRON_SECRET`, `PASSCODE_PEPPER`, `WEB_ORIGIN`, WhatsApp variables later |
 
-Set the variables separately for Preview and Production. Never put the Supabase secret key in the `web` project or in any `NEXT_PUBLIC_*` variable.
+Set the variables separately for Preview and Production. `PASSCODE_PEPPER` is a random string of at least 32 characters (for example `openssl rand -hex 32`). Use a different one per environment, store it in the password manager, and never change it casually: changing it invalidates every passcode. Never put the Supabase secret key in the `web` project or in any `NEXT_PUBLIC_*` variable.
 
 **Supabase**: allow the deployed web address under Authentication > URL Configuration, so password-reset and invite links can return to it. Switch off public sign-ups.
 

@@ -2,7 +2,7 @@
 // Creates its own test accounts and removes them at the end.
 import { createClient } from '@supabase/supabase-js';
 
-const API = process.env.API ?? 'http://localhost:4125/api/v1';
+const API = process.env.API ?? 'http://localhost:4000/api/v1';
 const URL_ = process.env.SUPABASE_URL!;
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY!;
 const ANON = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY!;

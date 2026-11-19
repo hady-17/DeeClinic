@@ -4,12 +4,13 @@ import { getSupabase } from '../lib/supabase.js';
 import { NOTE_COLUMNS, toNote, type NoteRow } from './visit-notes.js';
 
 const COLUMNS =
-  'id, client_id, service_id, start_at, end_at, status, price_usd, notes, created_at, updated_at, clients(full_name, phone_e164), services(name)';
+  'id, client_id, service_id, client_package_id, start_at, end_at, status, price_usd, notes, created_at, updated_at, clients(full_name, phone_e164), services(name)';
 
 interface Row {
   id: string;
   client_id: string;
   service_id: string;
+  client_package_id: string | null;
   start_at: string;
   end_at: string;
   status: AppointmentStatus;
@@ -30,6 +31,7 @@ const toModel = (r: Row): Appointment => ({
   clientPhone: r.clients?.phone_e164 ?? '',
   serviceId: r.service_id,
   serviceName: r.services?.name ?? '',
+  clientPackageId: r.client_package_id,
   startAt: iso(r.start_at),
   endAt: iso(r.end_at),
   status: r.status,
@@ -116,12 +118,14 @@ export async function insertAppointment(row: {
   priceUsd: number;
   notes: string | null;
   createdBy: string;
+  clientPackageId?: string | null;
 }): Promise<Appointment> {
   const { data, error } = await getSupabase()
     .from('appointments')
     .insert({
       client_id: row.clientId,
       service_id: row.serviceId,
+      client_package_id: row.clientPackageId ?? null,
       start_at: row.startAt,
       end_at: row.endAt,
       price_usd: row.priceUsd,
@@ -170,6 +174,24 @@ export async function setStatus(
     .maybeSingle();
   if (error) throw error;
   return data ? toModel(data as unknown as Row) : null;
+}
+
+/**
+ * Marks a no-show. When the clinic's rule says a no-show uses a session, one is taken from
+ * the client's package (if any are left). Returns whether a session was used.
+ */
+export async function markNoShow(id: string, consumeSession: boolean): Promise<boolean> {
+  const { data, error } = await getSupabase().rpc('mark_no_show', {
+    p_appointment_id: id,
+    p_consume_session: consumeSession,
+  });
+  if (!error) return Boolean(data);
+  const msg = error.message ?? '';
+  if (msg.includes('APPOINTMENT_NOT_FOUND')) throw AppError.notFound('Appointment not found.');
+  if (msg.includes('INVALID_STATUS_TRANSITION')) {
+    throw AppError.businessRule('This appointment can no longer be changed.');
+  }
+  throw error;
 }
 
 /** Runs the complete_appointment database function and maps its errors. */

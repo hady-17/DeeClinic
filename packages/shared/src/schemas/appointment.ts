@@ -23,6 +23,8 @@ export const appointmentCreateSchema = z.object({
   serviceId: z.uuid(),
   startAt: instant,
   notes: z.preprocess(blankToNull, z.string().trim().max(1000).nullable()).default(null),
+  /** Book this visit against one of the client's packages. The price is then 0. */
+  clientPackageId: z.uuid().nullable().optional(),
 });
 
 export type AppointmentCreate = z.infer<typeof appointmentCreateSchema>;
@@ -54,6 +56,7 @@ export interface Appointment {
   clientPhone: string;
   serviceId: string;
   serviceName: string;
+  clientPackageId: string | null;
   startAt: string;
   endAt: string;
   status: AppointmentStatus;

@@ -7,8 +7,11 @@ interface Row {
   address: string | null;
   timezone: string;
   reminder_send_time: string; // 'HH:MM:SS' from Postgres
+  no_show_uses_session: boolean;
   updated_at: string;
 }
+
+const COLUMNS = 'name, phone_e164, address, timezone, reminder_send_time, no_show_uses_session, updated_at';
 
 const toModel = (r: Row): ClinicSettings => ({
   name: r.name,
@@ -16,13 +19,14 @@ const toModel = (r: Row): ClinicSettings => ({
   address: r.address,
   timezone: r.timezone,
   reminderSendTime: r.reminder_send_time.slice(0, 5),
+  noShowUsesSession: r.no_show_uses_session,
   updatedAt: r.updated_at,
 });
 
 export async function getClinicSettings(): Promise<ClinicSettings | null> {
   const { data, error } = await getSupabase()
     .from('clinic_settings')
-    .select('name, phone_e164, address, timezone, reminder_send_time, updated_at')
+    .select(COLUMNS)
     .eq('id', 1)
     .maybeSingle();
   if (error) throw error;
@@ -39,9 +43,10 @@ export async function saveClinicSettings(input: ClinicSettingsInput): Promise<Cl
       address: input.address,
       timezone: input.timezone,
       reminder_send_time: input.reminderSendTime,
+      no_show_uses_session: input.noShowUsesSession,
       updated_at: new Date().toISOString(),
     })
-    .select('name, phone_e164, address, timezone, reminder_send_time, updated_at')
+    .select(COLUMNS)
     .single();
   if (error) throw error;
   return toModel(data as Row);

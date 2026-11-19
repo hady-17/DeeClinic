@@ -2,8 +2,10 @@
 
 import { formatUsd, roundCents, type Appointment, type Payment } from '@deeclinic/shared';
 import { useEffect, useState } from 'react';
+import { Icon } from '@/components/Icon';
 import { PaymentForm } from '@/components/PaymentForm';
 import { PaymentList } from '@/components/PaymentList';
+import { Alert, Badge, Button, Skeleton } from '@/components/ui';
 import { api, describeError } from '@/lib/api';
 import { hasPermission, useMe } from '@/lib/hooks';
 
@@ -33,9 +35,13 @@ export function AppointmentPayments({ appointment: a }: { appointment: Appointme
 
   if (coveredByPackage) {
     return (
-      <section aria-label="Payment" className="space-y-1">
-        <h3 className="text-sm font-semibold">Payment</h3>
-        <p className="text-sm text-stone-600">Covered by the client&apos;s package. Nothing to collect for this visit.</p>
+      <section aria-label="Payment" className="space-y-2">
+        <h3 className="text-sm font-semibold text-fg">Payment</h3>
+        <Alert tone="info">
+          <span className="flex items-center gap-2">
+            <Icon name="box" size={15} /> Covered by the client&apos;s package. Nothing to collect for this visit.
+          </span>
+        </Alert>
       </section>
     );
   }
@@ -46,31 +52,27 @@ export function AppointmentPayments({ appointment: a }: { appointment: Appointme
 
   return (
     <section aria-label="Payment" className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Payment</h3>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-fg">Payment</h3>
         {canRecord && due > 0.05 && !adding && (
-          <button type="button" onClick={() => setAdding(true)} className="text-sm underline">
+          <Button size="sm" icon="plus" onClick={() => setAdding(true)}>
             Add payment
-          </button>
+          </Button>
         )}
       </div>
 
-      {payments !== null && (
-        <p className="text-sm" aria-live="polite">
-          Paid {formatUsd(paid)} of {formatUsd(a.priceUsd)}
-          {due > 0.05 ? (
-            <span className="ml-2 font-medium text-amber-800">{formatUsd(due)} due</span>
-          ) : (
-            a.priceUsd > 0 && <span className="ml-2 text-emerald-800">paid in full</span>
-          )}
+      {payments === null ? (
+        <Skeleton className="h-6 w-56" />
+      ) : (
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted" aria-live="polite">
+          <span>
+            Paid <strong className="text-fg">{formatUsd(paid)}</strong> of {formatUsd(a.priceUsd)}
+          </span>
+          {due > 0.05 ? <Badge tone="warn">{formatUsd(due)} due</Badge> : a.priceUsd > 0 && <Badge tone="ok">Paid in full</Badge>}
         </p>
       )}
 
-      {error && (
-        <p role="alert" className="text-sm text-red-700">
-          {error}
-        </p>
-      )}
+      {error && <Alert tone="bad">{error}</Alert>}
 
       {adding && (
         <PaymentForm

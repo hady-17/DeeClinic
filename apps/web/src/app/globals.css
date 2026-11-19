@@ -1,11 +1,205 @@
 @import 'tailwindcss';
 
+/*
+ * Design tokens. Every colour in the app comes from here, and each has a light and a dark value,
+ * so a screen is themed automatically and components never need their own dark-mode rules.
+ * Pairs are chosen for WCAG AA contrast (4.5:1 for text): text/muted on canvas, surface and
+ * sunken; "ink" colours on their "soft" backgrounds; on-primary on primary.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #fafaf9;
-  --foreground: #1c1917;
+  color-scheme: light;
+
+  --c-canvas: #f6f5f2; /* page background: warm off-white */
+  --c-surface: #ffffff; /* cards, inputs, menus */
+  --c-sunken: #efede8; /* wells, table headers, hover */
+  --c-line: #e3e0d8; /* borders */
+  --c-line-strong: #8f8b82; /* input and control borders: 3:1 against the surface */
+  --c-fg: #1c1b19; /* body text */
+  --c-muted: #66635d; /* secondary text */
+  --c-faint: #6c685f; /* placeholders and hints */
+
+  --c-primary: #0f766e; /* deep teal: calm, clean, clinical */
+  --c-primary-hover: #0c5f58;
+  --c-on-primary: #ffffff;
+  --c-primary-soft: #e0f2ef;
+  --c-primary-ink: #0b5a54;
+
+  --c-accent: #b4536a; /* rose: brand warmth, used sparingly */
+  --c-accent-soft: #fbecef;
+  --c-accent-ink: #8f3a50;
+
+  --c-ok: #15803d;
+  --c-ok-soft: #e5f5ea;
+  --c-ok-ink: #14532d;
+  --c-warn: #b45309;
+  --c-warn-soft: #fcefd6;
+  --c-warn-ink: #7c3a07;
+  --c-bad: #b42318;
+  --c-bad-soft: #fdebe9;
+  --c-bad-ink: #8a1a11;
+  --c-info: #1d5fa8;
+  --c-info-soft: #e5eefa;
+  --c-info-ink: #174a85;
+
+  --shadow-card: 0 1px 2px rgb(28 27 25 / 0.04), 0 1px 3px rgb(28 27 25 / 0.06);
+  --shadow-pop: 0 10px 30px -8px rgb(28 27 25 / 0.2), 0 2px 6px rgb(28 27 25 / 0.08);
+  --scrim: rgb(28 27 25 / 0.45);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --c-canvas: #0d1110;
+  --c-surface: #151a19;
+  --c-sunken: #1c2322;
+  --c-line: #2a3331;
+  --c-line-strong: #6a7674;
+  --c-fg: #e8ecea;
+  --c-muted: #98a4a1;
+  --c-faint: #8b9795;
+
+  --c-primary: #2dd4bf;
+  --c-primary-hover: #5eead4;
+  --c-on-primary: #03211d;
+  --c-primary-soft: #11332f;
+  --c-primary-ink: #7ce3d4;
+
+  --c-accent: #e58ca0;
+  --c-accent-soft: #3a1f27;
+  --c-accent-ink: #f2b3c1;
+
+  --c-ok: #4ade80;
+  --c-ok-soft: #12301e;
+  --c-ok-ink: #86efac;
+  --c-warn: #fbbf24;
+  --c-warn-soft: #35290f;
+  --c-warn-ink: #fcd34d;
+  --c-bad: #f87171;
+  --c-bad-soft: #3a1a1a;
+  --c-bad-ink: #fca5a5;
+  --c-info: #60a5fa;
+  --c-info-soft: #14284a;
+  --c-info-ink: #93c5fd;
+
+  --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.02);
+  --shadow-pop: 0 14px 36px -8px rgb(0 0 0 / 0.65), 0 0 0 1px rgb(255 255 255 / 0.05);
+  --scrim: rgb(0 0 0 / 0.6);
+}
+
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --color-canvas: var(--c-canvas);
+  --color-surface: var(--c-surface);
+  --color-sunken: var(--c-sunken);
+  --color-line: var(--c-line);
+  --color-line-strong: var(--c-line-strong);
+  --color-fg: var(--c-fg);
+  --color-muted: var(--c-muted);
+  --color-faint: var(--c-faint);
+
+  --color-primary: var(--c-primary);
+  --color-primary-hover: var(--c-primary-hover);
+  --color-on-primary: var(--c-on-primary);
+  --color-primary-soft: var(--c-primary-soft);
+  --color-primary-ink: var(--c-primary-ink);
+
+  --color-accent: var(--c-accent);
+  --color-accent-soft: var(--c-accent-soft);
+  --color-accent-ink: var(--c-accent-ink);
+
+  --color-ok: var(--c-ok);
+  --color-ok-soft: var(--c-ok-soft);
+  --color-ok-ink: var(--c-ok-ink);
+  --color-warn: var(--c-warn);
+  --color-warn-soft: var(--c-warn-soft);
+  --color-warn-ink: var(--c-warn-ink);
+  --color-bad: var(--c-bad);
+  --color-bad-soft: var(--c-bad-soft);
+  --color-bad-ink: var(--c-bad-ink);
+  --color-info: var(--c-info);
+  --color-info-soft: var(--c-info-soft);
+  --color-info-ink: var(--c-info-ink);
+
+  --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-pop);
+}
+
+html {
+  background: var(--c-canvas);
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--c-canvas);
+  color: var(--c-fg);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--c-primary-soft);
+  color: var(--c-primary-ink);
+}
+
+/* One clear, high-contrast focus ring for keyboard users, everywhere */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--c-primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--c-faint);
+}
+
+/* Date and time pickers follow the theme */
+input[type='date'],
+input[type='time'] {
+  color-scheme: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
 }

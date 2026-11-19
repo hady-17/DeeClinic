@@ -8,16 +8,17 @@ import {
 } from '@deeclinic/shared';
 import Link from 'next/link';
 import { useState } from 'react';
+import { Alert, Button, Checkbox, Field, Input, Select, Textarea } from '@/components/ui';
 import { api, ApiError } from '@/lib/api';
-
-const field = 'w-full rounded-md border border-stone-300 px-3 py-2';
 
 export function ClientForm({
   client,
   onSaved,
+  submitLabel,
 }: {
   client: Client | null;
   onSaved: (saved: Client) => void;
+  submitLabel?: string;
 }) {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -62,87 +63,72 @@ export function ClientForm({
     }
   }
 
-  const err = (name: string) =>
-    fieldErrors[name] && <p className="text-sm text-red-700">{fieldErrors[name]}</p>;
-
   return (
-    <form onSubmit={onSubmit} className="space-y-4 rounded-xl border border-stone-200 bg-white p-6">
-      <div className="space-y-1">
-        <label htmlFor="fullName" className="text-sm font-medium">Full name</label>
-        <input id="fullName" name="fullName" required defaultValue={client?.fullName} className={field} />
-        {err('fullName')}
+    <form onSubmit={onSubmit} className="space-y-5">
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Field label="Full name" htmlFor="fullName" error={fieldErrors.fullName} className="sm:col-span-2">
+          <Input id="fullName" name="fullName" required defaultValue={client?.fullName} aria-invalid={Boolean(fieldErrors.fullName)} data-autofocus={client ? undefined : true} />
+        </Field>
+
+        <Field
+          label="WhatsApp / phone"
+          htmlFor="phoneE164"
+          hint="International format, for example +961 71 123 456"
+          error={fieldErrors.phoneE164}
+        >
+          <Input id="phoneE164" name="phoneE164" required inputMode="tel" placeholder="+961 71 123 456" defaultValue={client?.phoneE164} aria-invalid={Boolean(fieldErrors.phoneE164)} />
+          {duplicateId && (
+            <Link href={`/clients/${duplicateId}`} className="mt-1.5 inline-block text-sm font-medium text-primary-ink hover:underline">
+              Open the existing client
+            </Link>
+          )}
+        </Field>
+
+        <Field label="Email" htmlFor="email" error={fieldErrors.email}>
+          <Input id="email" name="email" type="email" defaultValue={client?.email ?? ''} aria-invalid={Boolean(fieldErrors.email)} />
+        </Field>
+
+        <Field label="Instagram" htmlFor="instagramHandle" error={fieldErrors.instagramHandle}>
+          <Input id="instagramHandle" name="instagramHandle" placeholder="@handle" defaultValue={client?.instagramHandle ?? ''} aria-invalid={Boolean(fieldErrors.instagramHandle)} />
+        </Field>
+
+        <Field label="How they found the clinic" htmlFor="source" error={fieldErrors.source}>
+          <Select id="source" name="source" defaultValue={client?.source ?? ''}>
+            <option value="">Not recorded</option>
+            {CLIENT_SOURCES.map((s) => (
+              <option key={s} value={s}>
+                {CLIENT_SOURCE_LABELS[s]}
+              </option>
+            ))}
+          </Select>
+        </Field>
+
+        <Field label="Notes" htmlFor="notes" error={fieldErrors.notes} className="sm:col-span-2">
+          <Textarea id="notes" name="notes" rows={3} defaultValue={client?.notes ?? ''} />
+        </Field>
       </div>
 
-      <div className="space-y-1">
-        <label htmlFor="phoneE164" className="text-sm font-medium">WhatsApp / phone (international format)</label>
-        <input id="phoneE164" name="phoneE164" required inputMode="tel" placeholder="+961 71 123 456" defaultValue={client?.phoneE164} className={field} />
-        {err('phoneE164')}
-        {duplicateId && (
-          <Link href={`/clients/${duplicateId}`} className="text-sm underline">
-            Open the existing client
-          </Link>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="space-y-1">
-          <label htmlFor="instagramHandle" className="text-sm font-medium">Instagram</label>
-          <input id="instagramHandle" name="instagramHandle" placeholder="@handle" defaultValue={client?.instagramHandle ?? ''} className={field} />
-          {err('instagramHandle')}
-        </div>
-        <div className="space-y-1">
-          <label htmlFor="email" className="text-sm font-medium">Email</label>
-          <input id="email" name="email" type="email" defaultValue={client?.email ?? ''} className={field} />
-          {err('email')}
-        </div>
-      </div>
-
-      <div className="space-y-1">
-        <label htmlFor="source" className="text-sm font-medium">How they found the clinic</label>
-        <select id="source" name="source" defaultValue={client?.source ?? ''} className={field}>
-          <option value="">Not recorded</option>
-          {CLIENT_SOURCES.map((s) => (
-            <option key={s} value={s}>{CLIENT_SOURCE_LABELS[s]}</option>
-          ))}
-        </select>
-        {err('source')}
-      </div>
-
-      <div className="space-y-1">
-        <label htmlFor="notes" className="text-sm font-medium">Notes</label>
-        <textarea id="notes" name="notes" rows={3} defaultValue={client?.notes ?? ''} className={field} />
-        {err('notes')}
-      </div>
-
-      <div className="space-y-1">
-        <label className="flex items-start gap-2 text-sm">
-          <input type="checkbox" name="whatsappConsent" defaultChecked={Boolean(client?.whatsappConsentAt)} className="mt-1" />
-          <span>
-            The client agreed to receive WhatsApp reminders and messages from the clinic.
-            {client?.whatsappConsentAt && (
-              <span className="block text-stone-500">
-                Consent recorded {new Date(client.whatsappConsentAt).toLocaleDateString()}.
-              </span>
-            )}
-          </span>
-        </label>
+      <div className="space-y-3 rounded-xl border border-line bg-sunken/60 p-4">
+        <Checkbox
+          name="whatsappConsent"
+          defaultChecked={Boolean(client?.whatsappConsentAt)}
+          label="The client agreed to receive WhatsApp reminders and messages from the clinic."
+          hint={client?.whatsappConsentAt ? `Consent recorded ${new Date(client.whatsappConsentAt).toLocaleDateString()}.` : 'Reminders are only sent to clients who have agreed.'}
+        />
         {client?.whatsappOptOutAt && (
-          <p className="text-sm text-amber-800">
-            This client replied STOP on {new Date(client.whatsappOptOutAt).toLocaleDateString()}. No
-            messages will be sent.
-          </p>
+          <Alert tone="warn">
+            This client replied STOP on {new Date(client.whatsappOptOutAt).toLocaleDateString()}. No messages will be sent.
+          </Alert>
         )}
       </div>
 
-      {formError && (
-        <p role="alert" className="text-sm text-red-700">
-          {formError}
-        </p>
-      )}
+      {formError && <Alert tone="bad">{formError}</Alert>}
 
-      <button type="submit" disabled={saving} className="rounded-md bg-stone-900 px-4 py-2 text-white disabled:opacity-60">
-        {saving ? 'Saving…' : 'Save'}
-      </button>
+      <div className="flex justify-end">
+        <Button type="submit" variant="primary" loading={saving}>
+          {saving ? 'Saving…' : (submitLabel ?? 'Save')}
+        </Button>
+      </div>
     </form>
   );
 }

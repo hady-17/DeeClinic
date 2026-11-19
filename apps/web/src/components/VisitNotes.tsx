@@ -2,9 +2,8 @@
 
 import type { VisitNote } from '@deeclinic/shared';
 import { useEffect, useState } from 'react';
+import { Alert, Button, Field, Input, Skeleton, Textarea } from '@/components/ui';
 import { api, describeError } from '@/lib/api';
-
-const field = 'w-full rounded-md border border-stone-300 px-3 py-2 text-sm';
 
 /**
  * Notes for one appointment. Pass initialNotes when the parent already has them
@@ -42,34 +41,27 @@ export function VisitNotes({
   function upsert(note: VisitNote) {
     setNotes((prev) => {
       const list = prev ?? [];
-      return list.some((n) => n.id === note.id)
-        ? list.map((n) => (n.id === note.id ? note : n))
-        : [...list, note];
+      return list.some((n) => n.id === note.id) ? list.map((n) => (n.id === note.id ? note : n)) : [...list, note];
     });
   }
 
   return (
     <section aria-label="Visit notes" className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Visit notes</h3>
+        <h3 className="text-sm font-semibold text-fg">Visit notes</h3>
         {canAdd && !adding && (
-          <button type="button" onClick={() => setAdding(true)} className="text-sm underline">
+          <Button size="sm" icon="plus" onClick={() => setAdding(true)}>
             Add note
-          </button>
+          </Button>
         )}
       </div>
 
-      {error && (
-        <p role="alert" className="text-sm text-red-700">
-          {error}
-        </p>
-      )}
+      {error && <Alert tone="bad">{error}</Alert>}
 
       {notes === null ? (
-        <p className="text-sm text-stone-500">Loading…</p>
+        <Skeleton className="h-16 w-full" />
       ) : (
-        notes.length === 0 &&
-        !adding && <p className="text-sm text-stone-500">No notes for this visit.</p>
+        notes.length === 0 && !adding && <p className="text-sm text-muted">No notes for this visit.</p>
       )}
 
       <ul className="space-y-2">
@@ -87,20 +79,20 @@ export function VisitNotes({
               />
             </li>
           ) : (
-            <li key={n.id} className="rounded-md bg-stone-50 p-3 text-sm">
-              <p className="whitespace-pre-wrap">{n.body}</p>
-              {n.productsUsed && <p className="mt-1 text-stone-600">Products: {n.productsUsed}</p>}
-              <p className="mt-1 flex items-center justify-between text-xs text-stone-500">
+            <li key={n.id} className="rounded-lg border border-line bg-sunken/60 p-3.5 text-sm">
+              <p className="whitespace-pre-wrap text-fg">{n.body}</p>
+              {n.productsUsed && <p className="mt-1.5 text-muted">Products: {n.productsUsed}</p>}
+              <div className="mt-2 flex items-center justify-between text-xs text-muted">
                 <span>
                   {new Date(n.createdAt).toLocaleString()}
-                  {n.updatedAt !== n.createdAt && ' (edited)'}
+                  {n.updatedAt !== n.createdAt && ' · edited'}
                 </span>
                 {canAdd && (
-                  <button type="button" onClick={() => setEditingId(n.id)} className="underline">
+                  <button type="button" onClick={() => setEditingId(n.id)} className="font-medium text-primary-ink hover:underline">
                     Edit
                   </button>
                 )}
-              </p>
+              </div>
             </li>
           ),
         )}
@@ -136,6 +128,7 @@ function NoteForm({
   const [products, setProducts] = useState(note?.productsUsed ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const key = note?.id ?? 'new';
 
   async function submit(e: React.FormEvent) {
     // Stop the click from submitting a form this one sits inside
@@ -156,46 +149,26 @@ function NoteForm({
       onSaved(r.data);
     } catch (err) {
       setError(describeError(err, 'Could not save the note.'));
-    } finally {
       setSaving(false);
     }
   }
 
   return (
-    <form onSubmit={submit} className="space-y-2 rounded-md border border-stone-300 p-3">
-      <label className="block text-sm font-medium" htmlFor={`note-body-${note?.id ?? 'new'}`}>
-        Note
-      </label>
-      <textarea
-        id={`note-body-${note?.id ?? 'new'}`}
-        rows={3}
-        required
-        autoFocus
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        className={field}
-      />
-      <label className="block text-sm font-medium" htmlFor={`note-products-${note?.id ?? 'new'}`}>
-        Products used (optional)
-      </label>
-      <input
-        id={`note-products-${note?.id ?? 'new'}`}
-        value={products}
-        onChange={(e) => setProducts(e.target.value)}
-        className={field}
-      />
-      {error && (
-        <p role="alert" className="text-sm text-red-700">
-          {error}
-        </p>
-      )}
+    <form onSubmit={submit} className="space-y-3 rounded-xl border border-line-strong bg-surface p-4">
+      <Field label="Note" htmlFor={`note-body-${key}`}>
+        <Textarea id={`note-body-${key}`} rows={3} required value={body} onChange={(e) => setBody(e.target.value)} data-autofocus />
+      </Field>
+      <Field label="Products used" htmlFor={`note-products-${key}`} hint="Optional">
+        <Input id={`note-products-${key}`} value={products} onChange={(e) => setProducts(e.target.value)} />
+      </Field>
+      {error && <Alert tone="bad">{error}</Alert>}
       <div className="flex gap-2">
-        <button type="submit" disabled={saving} className="rounded-md bg-stone-900 px-3 py-1.5 text-sm text-white disabled:opacity-60">
+        <Button type="submit" variant="primary" size="sm" loading={saving}>
           {saving ? 'Saving…' : 'Save note'}
-        </button>
-        <button type="button" onClick={onCancel} className="rounded-md border border-stone-300 px-3 py-1.5 text-sm">
+        </Button>
+        <Button size="sm" onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
       </div>
     </form>
   );

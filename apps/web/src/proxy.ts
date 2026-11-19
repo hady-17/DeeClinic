@@ -6,6 +6,12 @@ const PUBLIC_PATHS = ['/login', '/forgot-password', '/reset-password'];
 
 // Next 16 "proxy" (formerly middleware): refreshes the session and guards routes.
 export async function proxy(request: NextRequest) {
+  // Local design review only: show every screen against a fake API, with no login.
+  // Never honoured in a production build.
+  if (process.env.NODE_ENV !== 'production' && process.env.DESIGN_PREVIEW === '1') {
+    return NextResponse.next({ request });
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(

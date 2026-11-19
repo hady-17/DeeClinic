@@ -12,9 +12,8 @@ import {
 } from '@deeclinic/shared';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { Alert, Button, Field, Input, Segmented, Select } from '@/components/ui';
 import { api, describeError, newKey } from '@/lib/api';
-
-const field = 'w-full rounded-md border border-stone-300 px-3 py-2 text-sm';
 
 export interface PaymentTarget {
   appointmentId?: string;
@@ -62,8 +61,7 @@ export function PaymentForm({
   }
 
   const numeric = Number(amount);
-  const usdValue =
-    currency === 'USD' ? numeric : rate && numeric > 0 ? roundCents(numeric / rate) : null;
+  const usdValue = currency === 'USD' ? numeric : rate && numeric > 0 ? roundCents(numeric / rate) : null;
   const overDue = usdValue !== null && usdValue > dueUsd + 0.05;
 
   async function submit(e: React.FormEvent) {
@@ -87,72 +85,63 @@ export function PaymentForm({
   }
 
   return (
-    <form onSubmit={submit} className="space-y-3 rounded-md border border-stone-300 p-3">
-      <p className="text-sm">
-        Still due: <strong>{formatUsd(dueUsd)}</strong>
-      </p>
-
-      <fieldset className="flex gap-4 text-sm">
-        <legend className="sr-only">Currency</legend>
-        {(['USD', 'LBP'] as const).map((c) => (
-          <label key={c} className="flex items-center gap-1.5">
-            <input type="radio" name="currency" checked={currency === c} onChange={() => pickCurrency(c)} />
-            {c === 'USD' ? 'US dollars' : 'Lebanese pounds'}
-          </label>
-        ))}
-      </fieldset>
+    <form onSubmit={submit} className="space-y-4 rounded-xl border border-line bg-sunken/60 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted">
+          Still due <strong className="ml-1 text-base text-fg">{formatUsd(dueUsd)}</strong>
+        </p>
+        <Segmented
+          label="Currency"
+          size="sm"
+          value={currency}
+          onChange={pickCurrency}
+          options={[
+            { value: 'USD', label: 'US dollars' },
+            { value: 'LBP', label: 'Lebanese pounds' },
+          ]}
+        />
+      </div>
 
       {currency === 'LBP' && rate === null && (
-        <p role="alert" className="text-sm text-amber-800">
-          No exchange rate is set yet. <Link href="/rates" className="underline">Set the rate</Link> before taking LBP.
-        </p>
+        <Alert tone="warn">
+          No exchange rate is set yet.{' '}
+          <Link href="/rates" className="font-medium underline">
+            Set the rate
+          </Link>{' '}
+          before taking LBP.
+        </Alert>
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label htmlFor="pay-amount" className="text-sm font-medium">Amount ({currency})</label>
-          <input
-            id="pay-amount"
-            inputMode="decimal"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className={field}
-            autoFocus
-          />
-        </div>
-        <div className="space-y-1">
-          <label htmlFor="pay-method" className="text-sm font-medium">Method</label>
-          <select id="pay-method" value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)} className={field}>
+        <Field label={`Amount (${currency})`} htmlFor="pay-amount">
+          <Input id="pay-amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} data-autofocus />
+        </Field>
+        <Field label="Method" htmlFor="pay-method">
+          <Select id="pay-method" value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)}>
             {PAYMENT_METHODS.map((m) => (
-              <option key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</option>
+              <option key={m} value={m}>
+                {PAYMENT_METHOD_LABELS[m]}
+              </option>
             ))}
-          </select>
-        </div>
+          </Select>
+        </Field>
       </div>
 
       {currency === 'LBP' && rate && numeric > 0 && (
-        <p className="text-sm text-stone-600" aria-live="polite">
-          {formatLbp(numeric)} at {rate.toLocaleString('en-US')} = <strong>{formatUsd(usdValue ?? 0)}</strong>
+        <p className="text-sm text-muted" aria-live="polite">
+          {formatLbp(numeric)} at {rate.toLocaleString('en-US')} = <strong className="text-fg">{formatUsd(usdValue ?? 0)}</strong>
         </p>
       )}
-      {overDue && (
-        <p role="alert" className="text-sm text-amber-800">
-          That is more than the {formatUsd(dueUsd)} still due, so it will be refused.
-        </p>
-      )}
-      {error && (
-        <p role="alert" className="text-sm text-red-700">
-          {error}
-        </p>
-      )}
+      {overDue && <Alert tone="warn">That is more than the {formatUsd(dueUsd)} still due, so it will be refused.</Alert>}
+      {error && <Alert tone="bad">{error}</Alert>}
 
       <div className="flex gap-2">
-        <button type="submit" disabled={saving || (currency === 'LBP' && !rate)} className="rounded-md bg-stone-900 px-3 py-1.5 text-sm text-white disabled:opacity-60">
+        <Button type="submit" variant="primary" size="sm" loading={saving} disabled={currency === 'LBP' && !rate}>
           {saving ? 'Saving…' : 'Record payment'}
-        </button>
-        <button type="button" onClick={onCancel} className="rounded-md border border-stone-300 px-3 py-1.5 text-sm">
+        </Button>
+        <Button size="sm" onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
       </div>
     </form>
   );

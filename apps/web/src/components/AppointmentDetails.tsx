@@ -1,24 +1,23 @@
 'use client';
 
-import { OPEN_STATUSES, type Appointment } from '@deeclinic/shared';
+import { OPEN_STATUSES, formatUsd, type Appointment } from '@deeclinic/shared';
 import Link from 'next/link';
 import { useState } from 'react';
 import { AppointmentPayments } from '@/components/AppointmentPayments';
+import { Icon } from '@/components/Icon';
 import { VisitNotes } from '@/components/VisitNotes';
-import { api } from '@/lib/api';
+import { Alert, Avatar, Badge, Button } from '@/components/ui';
+import { api, describeError } from '@/lib/api';
+import { APPOINTMENT_STATUS } from '@/lib/status';
 import { formatDateTime, timeOf } from '@/lib/time';
 
-const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
-
-const STATUS_LABEL: Record<Appointment['status'], string> = {
-  scheduled: 'Scheduled',
-  confirmed: 'Confirmed',
-  completed: 'Completed',
-  no_show: 'No-show',
-  cancelled: 'Cancelled',
-};
-
 type Action = 'complete' | 'no-show' | 'cancel';
+
+const QUESTION: Record<Action, { text: string; yes: string; variant: 'primary' | 'danger'; done: string }> = {
+  complete: { text: 'Mark this visit as completed?', yes: 'Yes, complete it', variant: 'primary', done: 'Visit completed' },
+  'no-show': { text: 'Mark this client as a no-show? The slot is freed.', yes: 'Yes, no-show', variant: 'danger', done: 'Marked as no-show' },
+  cancel: { text: 'Cancel this appointment and free the slot?', yes: 'Yes, cancel it', variant: 'danger', done: 'Appointment cancelled' },
+};
 
 export function AppointmentDetails({
   appointment: a,
@@ -28,101 +27,102 @@ export function AppointmentDetails({
 }: {
   appointment: Appointment;
   tz: string;
-  onChanged: () => void;
+  onChanged: (message: string) => void;
   onEdit: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<Action | null>(null);
   const open = OPEN_STATUSES.includes(a.status);
+  const status = APPOINTMENT_STATUS[a.status];
 
   async function run(action: Action) {
     setBusy(true);
     setError(null);
     try {
-      await api(`/appointments/${a.id}/${action}`, { method: 'POST' });
-      onChanged();
+      const r = await api<{ sessionConsumed?: boolean }>(`/appointments/${a.id}/${action}`, { method: 'POST' });
+      onChanged(QUESTION[action].done + (r?.sessionConsumed ? '. A package session was used.' : ''));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong.');
+      setError(describeError(e, 'Something went wrong.'));
       setConfirming(null);
-    } finally {
       setBusy(false);
     }
   }
 
-  const btn = 'rounded-md border border-stone-300 px-3 py-2 text-sm disabled:opacity-60';
-
   return (
-    <div className="space-y-4">
-      <div>
-        <Link href={`/clients/${a.clientId}`} className="text-lg font-medium underline">
-          {a.clientName}
-        </Link>
-        <p className="text-sm text-stone-600">{a.clientPhone}</p>
+    <div className="space-y-6">
+      {/* Who and when */}
+      <div className="flex items-start gap-3">
+        <Avatar name={a.clientName} size={44} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href={`/clients/${a.clientId}`} className="text-lg font-semibold tracking-tight text-fg hover:underline">
+              {a.clientName}
+            </Link>
+            <Badge tone={status.tone}>{status.label}</Badge>
+          </div>
+          <p className="flex items-center gap-1.5 text-sm text-muted">
+            <Icon name="phone" size={14} /> {a.clientPhone}
+          </p>
+        </div>
       </div>
 
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-        <dt className="text-stone-500">Service</dt>
-        <dd>{a.serviceName}</dd>
-        <dt className="text-stone-500">When</dt>
-        <dd>
-          {formatDateTime(a.startAt, tz)} to {timeOf(a.endAt, tz)}
-        </dd>
-        <dt className="text-stone-500">Price</dt>
-        <dd>{a.clientPackageId ? 'Package visit' : usd.format(a.priceUsd)}</dd>
-        <dt className="text-stone-500">Status</dt>
-        <dd>{STATUS_LABEL[a.status]}</dd>
+      <dl className="grid grid-cols-2 gap-4 rounded-xl bg-sunken p-4 text-sm">
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted">Service</dt>
+          <dd className="mt-0.5 font-medium text-fg">{a.serviceName}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted">Price</dt>
+          <dd className="mt-0.5 font-medium text-fg">{a.clientPackageId ? 'Package visit' : formatUsd(a.priceUsd)}</dd>
+        </div>
+        <div className="col-span-2">
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted">When</dt>
+          <dd className="mt-0.5 font-medium text-fg">
+            {formatDateTime(a.startAt, tz)} to {timeOf(a.endAt, tz)}
+          </dd>
+        </div>
         {a.notes && (
-          <>
-            <dt className="text-stone-500">Notes</dt>
-            <dd className="whitespace-pre-wrap">{a.notes}</dd>
-          </>
+          <div className="col-span-2">
+            <dt className="text-xs font-medium uppercase tracking-wide text-muted">Booking note</dt>
+            <dd className="mt-0.5 whitespace-pre-wrap text-fg">{a.notes}</dd>
+          </div>
         )}
       </dl>
 
-      {error && (
-        <p role="alert" className="text-sm text-red-700">
-          {error}
-        </p>
-      )}
+      {error && <Alert tone="bad">{error}</Alert>}
 
-      <AppointmentPayments appointment={a} />
-
-      <VisitNotes appointmentId={a.id} canAdd={a.status !== 'cancelled'} />
-
+      {/* The next step for an open visit comes first */}
       {open &&
         (confirming ? (
-          <div className="space-y-2 rounded-md bg-stone-50 p-3">
-            <p className="text-sm">
-              {confirming === 'cancel' && 'Cancel this appointment and free the slot?'}
-              {confirming === 'no-show' && 'Mark this client as a no-show?'}
-              {confirming === 'complete' && 'Mark this visit as completed?'}
-            </p>
-            <div className="flex gap-2">
-              <button type="button" disabled={busy} onClick={() => run(confirming)} className="rounded-md bg-stone-900 px-3 py-2 text-sm text-white disabled:opacity-60">
-                {busy ? 'Working…' : 'Yes'}
-              </button>
-              <button type="button" disabled={busy} onClick={() => setConfirming(null)} className={btn}>
+          <div className="space-y-3 rounded-xl border border-line-strong bg-surface p-4" role="group" aria-label="Confirm">
+            <p className="text-sm font-medium text-fg">{QUESTION[confirming].text}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant={QUESTION[confirming].variant} loading={busy} onClick={() => run(confirming)}>
+                {busy ? 'Working…' : QUESTION[confirming].yes}
+              </Button>
+              <Button disabled={busy} onClick={() => setConfirming(null)}>
                 Go back
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => setConfirming('complete')} className="rounded-md bg-stone-900 px-3 py-2 text-sm text-white">
-              Complete
-            </button>
-            <button type="button" onClick={onEdit} className={btn}>
-              Reschedule / edit
-            </button>
-            <button type="button" onClick={() => setConfirming('no-show')} className={btn}>
-              No-show
-            </button>
-            <button type="button" onClick={() => setConfirming('cancel')} className={btn}>
-              Cancel appointment
-            </button>
+            <Button variant="primary" icon="check" onClick={() => setConfirming('complete')}>
+              Complete visit
+            </Button>
+            <Button icon="edit" onClick={onEdit}>
+              Reschedule
+            </Button>
+            <Button onClick={() => setConfirming('no-show')}>No-show</Button>
+            <Button variant="ghost" onClick={() => setConfirming('cancel')}>
+              Cancel
+            </Button>
           </div>
         ))}
+
+      <AppointmentPayments appointment={a} />
+      <VisitNotes appointmentId={a.id} canAdd={a.status !== 'cancelled'} />
     </div>
   );
 }

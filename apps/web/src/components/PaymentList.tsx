@@ -3,11 +3,12 @@
 import { PAYMENT_METHOD_LABELS, formatLbp, formatUsd, type Payment } from '@deeclinic/shared';
 import Link from 'next/link';
 import { useState } from 'react';
+import { Alert, Badge, Button, Card, Field, Input, cn } from '@/components/ui';
 import { api, ApiError, describeError } from '@/lib/api';
 import { useClinicTz } from '@/lib/hooks';
 import { formatDateTime } from '@/lib/time';
 
-/** Payments with their rate, and a way to void one (with a reason). Nothing is ever deleted. */
+/** Payments with their rate, and a way to void one (reason plus the person's passcode). Nothing is ever deleted. */
 export function PaymentList({
   payments,
   canVoid,
@@ -56,55 +57,48 @@ export function PaymentList({
     }
   }
 
-  if (payments.length === 0) return <p className="text-sm text-stone-500">No payments yet.</p>;
+  if (payments.length === 0) {
+    return <p className="rounded-lg border border-dashed border-line-strong px-4 py-5 text-center text-sm text-muted">No payments yet.</p>;
+  }
 
   return (
-    <div className="space-y-2">
-      {error && (
-        <p role="alert" className="text-sm text-red-700">
-          {error}
-        </p>
-      )}
-      <ul className="divide-y divide-stone-200 rounded-md border border-stone-200 bg-white text-sm">
-        {payments.map((p) => (
-          <li key={p.id} className={`space-y-1 p-3 ${p.voidedAt ? 'bg-stone-50 text-stone-500' : ''}`}>
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <span className={p.voidedAt ? 'line-through' : 'font-medium'}>
-                {p.currency === 'USD' ? formatUsd(p.amount) : `${formatLbp(p.amount)} (${formatUsd(p.amountUsd)})`}
-              </span>
-              <span className="text-xs">{formatDateTime(p.paidAt, tz)}</span>
-            </div>
-            <p className="text-xs text-stone-600">
-              {showFor && `${p.forLabel} · `}
-              {PAYMENT_METHOD_LABELS[p.method]}
-              {p.exchangeRate && ` · rate ${p.exchangeRate.toLocaleString('en-US')}`}
+    <Card className="divide-y divide-line overflow-hidden">
+      {payments.map((p) => (
+        <div key={p.id} className={cn('space-y-1.5 p-3.5 text-sm', p.voidedAt && 'bg-sunken/60')}>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <p className={cn('font-semibold', p.voidedAt ? 'text-muted line-through' : 'text-fg')}>
+              {p.currency === 'USD' ? formatUsd(p.amount) : formatLbp(p.amount)}
+              {p.currency === 'LBP' && <span className="ml-2 font-normal text-muted">= {formatUsd(p.amountUsd)}</span>}
             </p>
-            {p.voidedAt && <p className="text-xs">Void: {p.voidReason}</p>}
+            <div className="flex items-center gap-2 text-xs text-muted">
+              {p.voidedAt && <Badge tone="bad">Void</Badge>}
+              <span>{formatDateTime(p.paidAt, tz)}</span>
+            </div>
+          </div>
+          <p className="text-xs text-muted">
+            {showFor && `${p.forLabel} · `}
+            {PAYMENT_METHOD_LABELS[p.method]}
+            {p.exchangeRate && ` · rate ${p.exchangeRate.toLocaleString('en-US')}`}
+          </p>
+          {p.voidedAt && <p className="text-xs text-bad-ink">Reason: {p.voidReason}</p>}
 
-            {canVoid && !p.voidedAt && voidingId !== p.id && (
-              <button type="button" onClick={() => startVoid(p.id)} className="text-xs underline">
-                Void
-              </button>
-            )}
-            {voidingId === p.id && (
-              <div className="space-y-2 rounded-md border border-stone-300 bg-white p-3">
-                <p className="text-xs text-stone-600">
-                  Voiding keeps this payment on record but stops it counting. Enter your passcode to confirm.
-                </p>
-                <div className="space-y-1">
-                  <label htmlFor={`void-${p.id}`} className="text-xs font-medium">Reason</label>
-                  <input
-                    id={`void-${p.id}`}
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    placeholder="Why is it being voided?"
-                    className="w-full rounded-md border border-stone-300 px-2 py-1 text-xs"
-                    autoFocus
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label htmlFor={`pin-${p.id}`} className="text-xs font-medium">Your passcode</label>
-                  <input
+          {canVoid && !p.voidedAt && voidingId !== p.id && (
+            <button type="button" onClick={() => startVoid(p.id)} className="text-xs font-medium text-muted underline-offset-2 hover:text-bad-ink hover:underline">
+              Void this payment
+            </button>
+          )}
+
+          {voidingId === p.id && (
+            <div className="mt-2 space-y-3 rounded-lg border border-line-strong bg-surface p-3">
+              <p className="text-xs text-muted">
+                Voiding keeps this payment on record but stops it counting. Enter your passcode to confirm.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-[1fr_9rem]">
+                <Field label="Reason" htmlFor={`void-${p.id}`}>
+                  <Input id={`void-${p.id}`} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why is it being voided?" data-autofocus />
+                </Field>
+                <Field label="Your passcode" htmlFor={`pin-${p.id}`}>
+                  <Input
                     id={`pin-${p.id}`}
                     type="password"
                     inputMode="numeric"
@@ -113,33 +107,32 @@ export function PaymentList({
                     value={passcode}
                     onChange={(e) => setPasscode(e.target.value.replace(/\D/g, ''))}
                     placeholder="6 digits"
-                    className="w-32 rounded-md border border-stone-300 px-2 py-1 text-xs tracking-widest"
+                    className="tracking-widest"
                   />
-                </div>
-                {needsPasscode && (
-                  <p role="alert" className="text-xs text-amber-800">
-                    You have not set a passcode yet.{' '}
-                    <Link href="/account" className="underline">Set your passcode</Link>, then come back to void this payment.
-                  </p>
-                )}
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={busy || reason.trim().length < 3 || passcode.length !== 6}
-                    onClick={() => confirmVoid(p.id)}
-                    className="rounded-md bg-stone-900 px-2.5 py-1 text-xs text-white disabled:opacity-60"
-                  >
-                    {busy ? 'Voiding…' : 'Void payment'}
-                  </button>
-                  <button type="button" onClick={() => setVoidingId(null)} className="text-xs underline">
-                    Cancel
-                  </button>
-                </div>
+                </Field>
               </div>
-            )}
-          </li>
-        ))}
-      </ul>
-    </div>
+              {needsPasscode && (
+                <Alert tone="warn">
+                  You have not set a passcode yet.{' '}
+                  <Link href="/account" className="font-medium underline">
+                    Set your passcode
+                  </Link>
+                  , then come back to void this payment.
+                </Alert>
+              )}
+              {error && <Alert tone="bad">{error}</Alert>}
+              <div className="flex gap-2">
+                <Button size="sm" variant="danger" loading={busy} disabled={reason.trim().length < 3 || passcode.length !== 6} onClick={() => confirmVoid(p.id)}>
+                  {busy ? 'Voiding…' : 'Void payment'}
+                </Button>
+                <Button size="sm" onClick={() => setVoidingId(null)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+    </Card>
   );
 }

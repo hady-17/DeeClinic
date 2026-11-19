@@ -46,7 +46,7 @@ docs/             Project description, plan, architecture, database, CI/CD
 
 ## Tech
 
-Next.js 16, React 19, Tailwind 4, Express 5, TypeScript 6, Zod 4, Supabase (Postgres and Auth), Vitest. npm workspaces. Deployed on Vercel.
+Next.js 16, React 19, Tailwind 4 (with light and dark themes), Express 5, TypeScript 6, Zod 4, Supabase (Postgres and Auth), Vitest. npm workspaces. Deployed on Vercel.
 
 ## Getting started
 
@@ -138,6 +138,7 @@ Log in, then set your **passcode** under *My passcode*. You need one to void a p
 | `npm test` | Unit tests |
 | `npm run typecheck` / `lint` / `build` | Each check on its own |
 | `npm run format` | Format the code with Prettier |
+| `npm run preview -w @deeclinic/web` | Review every screen in light and dark against sample data, with no login. Opens `http://localhost:3100` |
 | `npm run test:e2e-auth -w @deeclinic/api` | Live check of login, users and password reset |
 | `npm run test:e2e-phase2 -w @deeclinic/api` | Live check of packages, payments, rates and the passcode |
 
@@ -185,6 +186,7 @@ Vercel deploys both apps from this repository (a push to `main` goes to producti
 - [03 Architecture](docs/03-architecture.md)
 - [04 Database](docs/04-database.md)
 - [05 CI/CD](docs/05-ci-cd.md)
+- [06 Design system](docs/06-design-system.md)
 
 ## Rules for changing the code
 

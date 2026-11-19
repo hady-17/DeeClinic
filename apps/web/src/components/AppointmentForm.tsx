@@ -1,13 +1,14 @@
 'use client';
 
-import type { Appointment, Client, ClientPackage, ClientPage, Service } from '@deeclinic/shared';
-import { useEffect, useState } from 'react';
+import { formatUsd, type Appointment, type Client, type ClientPackage, type ClientPage, type Service } from '@deeclinic/shared';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { Avatar, Alert, Button, Field, Input, Select, Textarea, cn } from '@/components/ui';
+import { Icon } from '@/components/Icon';
 import { api, ApiError, describeError, newKey } from '@/lib/api';
 import { dayOf, formatDateTime, lastValidDay, timeOf, zonedToUtc } from '@/lib/time';
 
-const field = 'w-full rounded-md border border-stone-300 px-3 py-2';
-const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+type PickedClient = Pick<Client, 'id' | 'fullName' | 'phoneE164'>;
 
 interface Props {
   tz: string;
@@ -15,11 +16,13 @@ interface Props {
   appointment?: Appointment;
   /** Prefill for a new booking, in the clinic timezone */
   initial?: { date: string; time: string };
+  /** Skip the client search, for bookings started from a client's page */
+  presetClient?: PickedClient;
   onSaved: () => void;
   onCancel: () => void;
 }
 
-export function AppointmentForm({ tz, appointment, initial, onSaved, onCancel }: Props) {
+export function AppointmentForm({ tz, appointment, initial, presetClient, onSaved, onCancel }: Props) {
   const editing = Boolean(appointment);
   // One key per form, so a retried submit can't create a second booking
   const [idempotencyKey] = useState(newKey);
@@ -30,10 +33,10 @@ export function AppointmentForm({ tz, appointment, initial, onSaved, onCancel }:
   const [time, setTime] = useState(appointment ? timeOf(appointment.startAt, tz) : (initial?.time ?? '09:00'));
   const [notes, setNotes] = useState(appointment?.notes ?? '');
 
-  const [client, setClient] = useState<Pick<Client, 'id' | 'fullName' | 'phoneE164'> | null>(
+  const [client, setClient] = useState<PickedClient | null>(
     appointment
       ? { id: appointment.clientId, fullName: appointment.clientName, phoneE164: appointment.clientPhone }
-      : null,
+      : (presetClient ?? null),
   );
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<Client[]>([]);
@@ -66,7 +69,7 @@ export function AppointmentForm({ tz, appointment, initial, onSaved, onCancel }:
       });
   }, []);
 
-  // Client search, after the owner stops typing
+  // Client search, after the person stops typing
   useEffect(() => {
     if (editing || client || search.trim().length < 2) return;
     let cancelled = false;
@@ -144,53 +147,71 @@ export function AppointmentForm({ tz, appointment, initial, onSaved, onCancel }:
       } else {
         setError(describeError(err, 'Could not save the appointment.'));
       }
-    } finally {
       setSaving(false);
     }
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <div className="space-y-1">
-        <span className="text-sm font-medium">Client</span>
+    <form onSubmit={onSubmit} className="space-y-5">
+      {/* Client */}
+      <div className="space-y-1.5">
+        <span className="block text-sm font-medium text-fg">Client</span>
         {client ? (
-          <div className="flex items-center justify-between rounded-md border border-stone-300 px-3 py-2">
-            <span>
-              {client.fullName} <span className="text-sm text-stone-500">{client.phoneE164}</span>
-            </span>
-            {!editing && (
-              <button type="button" onClick={() => { setClient(null); setSearch(''); setResults([]); setSearched(false); }} className="text-sm underline">
+          <div className="flex items-center gap-3 rounded-lg border border-line-strong bg-surface px-3 py-2.5">
+            <Avatar name={client.fullName} size={32} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-fg">{client.fullName}</p>
+              <p className="truncate text-xs text-muted">{client.phoneE164}</p>
+            </div>
+            {!editing && !presetClient && (
+              <button
+                type="button"
+                onClick={() => {
+                  setClient(null);
+                  setSearch('');
+                  setResults([]);
+                  setSearched(false);
+                }}
+                className="text-sm font-medium text-primary-ink hover:underline"
+              >
                 Change
               </button>
             )}
           </div>
         ) : (
           <>
-            <input
-              aria-label="Search clients by name or phone"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setSearched(false);
-              }}
-              placeholder="Search by name or phone"
-              autoFocus
-              className={field}
-            />
+            <div className="relative">
+              <Icon name="search" size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
+              <Input
+                aria-label="Search clients by name or phone"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setSearched(false);
+                }}
+                placeholder="Search by name or phone"
+                className="pl-9"
+                data-autofocus
+              />
+            </div>
             {searched && results.length === 0 && (
-              <p className="text-sm text-stone-600">
+              <p className="text-sm text-muted">
                 No client found.{' '}
-                <Link href="/clients/new" className="underline">
+                <Link href="/clients/new" className="font-medium text-primary-ink hover:underline">
                   Add a new client
                 </Link>
               </p>
             )}
             {results.length > 0 && (
-              <ul className="divide-y divide-stone-200 rounded-md border border-stone-200">
+              <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface shadow-card">
                 {results.map((c) => (
                   <li key={c.id}>
-                    <button type="button" onClick={() => setClient(c)} className="w-full px-3 py-2 text-left hover:bg-stone-50">
-                      {c.fullName} <span className="text-sm text-stone-500">{c.phoneE164}</span>
+                    <button type="button" onClick={() => setClient(c)} className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-sunken">
+                      <Avatar name={c.fullName} size={30} />
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium text-fg">{c.fullName}</span>
+                        <span className="block truncate text-xs text-muted">{c.phoneE164}</span>
+                      </span>
                     </button>
                   </li>
                 ))}
@@ -200,92 +221,106 @@ export function AppointmentForm({ tz, appointment, initial, onSaved, onCancel }:
         )}
       </div>
 
-      <div className="space-y-1">
-        <label htmlFor="service" className="text-sm font-medium">Service</label>
-        <select
+      {/* Service */}
+      <Field
+        label="Service"
+        htmlFor="service"
+        hint={appointment?.clientPackageId ? 'This visit is booked on a package, so its service cannot change.' : undefined}
+      >
+        <Select
           id="service"
           value={serviceId}
           onChange={(e) => setServiceId(e.target.value)}
           disabled={Boolean(appointment?.clientPackageId)}
-          className={field}
         >
           <option value="">{services === null ? 'Loading…' : 'Choose a service'}</option>
           {(services ?? []).map((s) => (
             <option key={s.id} value={s.id}>
-              {s.name} · {s.durationMinutes} min · {usd.format(s.priceUsd)}
+              {s.name} · {s.durationMinutes} min · {formatUsd(s.priceUsd)}
             </option>
           ))}
-        </select>
+        </Select>
         {services?.length === 0 && (
-          <p className="text-sm text-amber-800">
+          <p className="mt-1.5 text-sm text-warn-ink">
             No services yet.{' '}
-            <Link href="/services" className="underline">
+            <Link href="/services" className="font-medium underline">
               Add a service
             </Link>{' '}
             first.
           </p>
         )}
-        {appointment?.clientPackageId && (
-          <p className="text-sm text-stone-600">This visit is booked on a package, so its service cannot change.</p>
-        )}
-      </div>
+      </Field>
 
+      {/* Package or pay separately */}
       {eligible.length > 0 && (
-        <fieldset className="space-y-2 rounded-md border border-stone-200 p-3">
-          <legend className="px-1 text-sm font-medium">Payment for this visit</legend>
+        <fieldset className="space-y-2 rounded-lg border border-line bg-sunken/50 p-3">
+          <legend className="px-1 text-sm font-medium text-fg">Payment for this visit</legend>
           {eligible.map((p) => (
-            <label key={p.id} className="flex items-start gap-2 text-sm">
-              <input type="radio" name="pkg" checked={chosenPackageId === p.id} onChange={() => setPackageChoice(p.id)} className="mt-1" />
+            <label
+              key={p.id}
+              className={cn(
+                'flex cursor-pointer items-start gap-3 rounded-lg border bg-surface p-3 text-sm',
+                chosenPackageId === p.id ? 'border-primary' : 'border-line',
+              )}
+            >
+              <input type="radio" name="pkg" checked={chosenPackageId === p.id} onChange={() => setPackageChoice(p.id)} className="mt-0.5 accent-(--c-primary)" />
               <span>
-                Use the package <strong>{p.name}</strong>
-                <span className="block text-stone-500">
+                <span className="block font-medium text-fg">Use the package: {p.name}</span>
+                <span className="block text-xs text-muted">
                   {p.sessionsAvailableToBook} session{p.sessionsAvailableToBook === 1 ? '' : 's'} left to book · valid until {lastValidDay(p.expiresAt, tz)}
                 </span>
               </span>
             </label>
           ))}
-          <label className="flex items-start gap-2 text-sm">
-            <input type="radio" name="pkg" checked={chosenPackageId === ''} onChange={() => setPackageChoice('')} className="mt-1" />
-            <span>Pay for this visit separately{service && ` (${usd.format(service.priceUsd)})`}</span>
+          <label
+            className={cn(
+              'flex cursor-pointer items-start gap-3 rounded-lg border bg-surface p-3 text-sm',
+              chosenPackageId === '' ? 'border-primary' : 'border-line',
+            )}
+          >
+            <input type="radio" name="pkg" checked={chosenPackageId === ''} onChange={() => setPackageChoice('')} className="mt-0.5 accent-(--c-primary)" />
+            <span className="font-medium text-fg">Pay for this visit separately{service && ` (${formatUsd(service.priceUsd)})`}</span>
           </label>
         </fieldset>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <label htmlFor="date" className="text-sm font-medium">Date</label>
-          <input id="date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} className={field} />
-        </div>
-        <div className="space-y-1">
-          <label htmlFor="time" className="text-sm font-medium">Start time</label>
-          <input id="time" type="time" step={300} required value={time} onChange={(e) => setTime(e.target.value)} className={field} />
-        </div>
+      {/* When */}
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Date" htmlFor="date">
+          <Input id="date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
+        </Field>
+        <Field label="Start time" htmlFor="time">
+          <Input id="time" type="time" step={300} required value={time} onChange={(e) => setTime(e.target.value)} />
+        </Field>
       </div>
-      {endPreview && (
-        <p className="text-sm text-stone-600">
-          Ends at {endPreview}
-          {service && (usingPackage || appointment?.clientPackageId ? ' · covered by the package' : ` · ${usd.format(service.priceUsd)}`)}
+      {endPreview && service && (
+        <p className="-mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-sunken px-3 py-2 text-sm text-muted">
+          <span className="inline-flex items-center gap-1.5">
+            <Icon name="clock" size={15} /> Ends at <strong className="text-fg">{endPreview}</strong> ({service.durationMinutes} min)
+          </span>
+          <span>
+            {usingPackage || appointment?.clientPackageId ? (
+              <strong className="text-primary-ink">Covered by the package</strong>
+            ) : (
+              <>
+                Price <strong className="text-fg">{formatUsd(service.priceUsd)}</strong>
+              </>
+            )}
+          </span>
         </p>
       )}
 
-      <div className="space-y-1">
-        <label htmlFor="notes" className="text-sm font-medium">Notes</label>
-        <textarea id="notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className={field} />
-      </div>
+      <Field label="Notes" htmlFor="notes" hint="Optional. Visible on the appointment, not sent to the client.">
+        <Textarea id="notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+      </Field>
 
-      {error && (
-        <p role="alert" className="text-sm text-red-700">
-          {error}
-        </p>
-      )}
+      {error && <Alert tone="bad">{error}</Alert>}
 
-      <div className="flex gap-2">
-        <button type="submit" disabled={saving} className="rounded-md bg-stone-900 px-4 py-2 text-white disabled:opacity-60">
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button type="submit" variant="primary" loading={saving}>
           {saving ? 'Saving…' : editing ? 'Save changes' : 'Book appointment'}
-        </button>
-        <button type="button" onClick={onCancel} className="rounded-md border border-stone-300 px-4 py-2">
-          Cancel
-        </button>
+        </Button>
       </div>
     </form>
   );

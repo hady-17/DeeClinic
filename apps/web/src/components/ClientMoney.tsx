@@ -11,21 +11,24 @@ import { useEffect, useState } from 'react';
 import { Modal } from '@/components/Modal';
 import { PaymentForm } from '@/components/PaymentForm';
 import { PaymentList } from '@/components/PaymentList';
+import { useToast } from '@/components/Toast';
+import { Alert, Badge, Button, Card, EmptyState, Field, ListSkeleton, SectionHeading, Select, type Tone } from '@/components/ui';
 import { api, describeError, newKey } from '@/lib/api';
 import { hasPermission, useClinicTz, useMe } from '@/lib/hooks';
 import { lastValidDay } from '@/lib/time';
 
-const STATUS: Record<ClientPackage['status'], { label: string; style: string }> = {
-  active: { label: 'Active', style: 'bg-emerald-100 text-emerald-900' },
-  completed: { label: 'Completed', style: 'bg-stone-200 text-stone-800' },
-  expired: { label: 'Expired', style: 'bg-red-100 text-red-900' },
-  cancelled: { label: 'Cancelled', style: 'bg-stone-200 text-stone-800' },
+const STATUS: Record<ClientPackage['status'], { label: string; tone: Tone }> = {
+  active: { label: 'Active', tone: 'ok' },
+  completed: { label: 'Completed', tone: 'neutral' },
+  expired: { label: 'Expired', tone: 'bad' },
+  cancelled: { label: 'Cancelled', tone: 'neutral' },
 };
 
 /** A client's packages (with sessions left and what is owed) and their payments. */
 export function ClientMoney({ clientId }: { clientId: string }) {
   const me = useMe();
   const tz = useClinicTz();
+  const toast = useToast();
   const [packages, setPackages] = useState<ClientPackage[] | null>(null);
   const [payments, setPayments] = useState<Payment[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -61,79 +64,81 @@ export function ClientMoney({ clientId }: { clientId: string }) {
   const canPay = hasPermission(me, 'payments.record');
 
   return (
-    <div className="space-y-8">
-      <section aria-label="Packages" className="space-y-3">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-lg font-semibold">Packages</h2>
-          {canSell && (
-            <button type="button" onClick={() => setSelling(true)} className="rounded-md border border-stone-300 px-3 py-1.5 text-sm">
-              Sell a package
-            </button>
-          )}
-        </div>
+    <div className="space-y-10">
+      <section aria-label="Packages" className="space-y-4">
+        <SectionHeading
+          title="Packages"
+          action={
+            canSell && (
+              <Button size="sm" icon="plus" onClick={() => setSelling(true)}>
+                Sell a package
+              </Button>
+            )
+          }
+        />
 
-        {error && (
-          <p role="alert" className="text-sm text-red-700">
-            {error}
-          </p>
-        )}
+        {error && <Alert tone="bad">{error}</Alert>}
 
         {packages === null ? (
-          <p className="text-stone-500">Loading…</p>
+          <ListSkeleton rows={2} />
         ) : packages.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-stone-300 p-6 text-center text-sm text-stone-500">
-            No packages.
-          </p>
+          <EmptyState icon="box" title="No packages" description="Sell a multi-session package and its sessions will be tracked here." />
         ) : (
-          <ul className="space-y-3">
+          <ul className="grid gap-4 lg:grid-cols-2">
             {packages.map((p) => {
               const due = roundCents(p.priceUsd - p.paidUsd);
+              const used = (p.sessionsUsed / p.sessionsTotal) * 100;
               return (
-                <li key={p.id} className="space-y-3 rounded-xl border border-stone-200 bg-white p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
+                <li key={p.id}>
+                  <Card className="h-full space-y-4 p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-fg">{p.name}</p>
+                        <p className="text-sm text-muted">
+                          {p.serviceName} · valid until {lastValidDay(p.expiresAt, tz)}
+                        </p>
+                      </div>
+                      <Badge tone={STATUS[p.status].tone}>{STATUS[p.status].label}</Badge>
+                    </div>
+
                     <div>
-                      <p className="font-medium">{p.name}</p>
-                      <p className="text-sm text-stone-600">
-                        {p.serviceName} · valid until {lastValidDay(p.expiresAt, tz)}
-                      </p>
+                      <div className="mb-1.5 flex items-baseline justify-between text-sm">
+                        <span>
+                          <strong className="text-2xl font-semibold text-fg">{p.sessionsRemaining}</strong>
+                          <span className="text-muted"> of {p.sessionsTotal} sessions left</span>
+                        </span>
+                        {p.status === 'active' && <span className="text-xs text-muted">{p.sessionsAvailableToBook} not yet booked</span>}
+                      </div>
+                      <div
+                        className="h-2 overflow-hidden rounded-full bg-sunken"
+                        role="progressbar"
+                        aria-label="Sessions used"
+                        aria-valuemin={0}
+                        aria-valuemax={p.sessionsTotal}
+                        aria-valuenow={p.sessionsUsed}
+                      >
+                        <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${used}%` }} />
+                      </div>
                     </div>
-                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS[p.status].style}`}>
-                      {STATUS[p.status].label}
-                    </span>
-                  </div>
 
-                  <div>
-                    <div
-                      className="h-2 overflow-hidden rounded-full bg-stone-200"
-                      role="progressbar"
-                      aria-label="Sessions used"
-                      aria-valuemin={0}
-                      aria-valuemax={p.sessionsTotal}
-                      aria-valuenow={p.sessionsUsed}
-                    >
-                      <div className="h-full bg-stone-800" style={{ width: `${(p.sessionsUsed / p.sessionsTotal) * 100}%` }} />
-                    </div>
-                    <p className="mt-1 text-sm">
-                      <strong>{p.sessionsRemaining}</strong> of {p.sessionsTotal} sessions left
-                      {p.status === 'active' && ` · ${p.sessionsAvailableToBook} not yet booked`}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                    <span>
-                      Paid {formatUsd(p.paidUsd)} of {formatUsd(p.priceUsd)}
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3 text-sm">
+                      <span className="text-muted">
+                        Paid <strong className="text-fg">{formatUsd(p.paidUsd)}</strong> of {formatUsd(p.priceUsd)}
+                      </span>
                       {due > 0.05 ? (
-                        <span className="ml-2 font-medium text-amber-800">{formatUsd(due)} due</span>
+                        <span className="flex items-center gap-2">
+                          <Badge tone="warn">{formatUsd(due)} due</Badge>
+                          {canPay && p.status !== 'cancelled' && (
+                            <Button size="sm" onClick={() => setPayingFor(p)}>
+                              Add payment
+                            </Button>
+                          )}
+                        </span>
                       ) : (
-                        <span className="ml-2 text-emerald-800">paid in full</span>
+                        <Badge tone="ok">Paid in full</Badge>
                       )}
-                    </span>
-                    {canPay && due > 0.05 && p.status !== 'cancelled' && (
-                      <button type="button" onClick={() => setPayingFor(p)} className="rounded-md border border-stone-300 px-2.5 py-1">
-                        Add payment
-                      </button>
-                    )}
-                  </div>
+                    </div>
+                  </Card>
                 </li>
               );
             })}
@@ -141,23 +146,24 @@ export function ClientMoney({ clientId }: { clientId: string }) {
         )}
       </section>
 
-      <section aria-label="Payments" className="space-y-3">
-        <h2 className="text-lg font-semibold">Payments</h2>
+      <section aria-label="Payments" className="space-y-4">
+        <SectionHeading title="Payments" />
         {payments === null ? (
-          <p className="text-stone-500">Loading…</p>
+          <ListSkeleton rows={2} />
         ) : (
           <PaymentList payments={payments} canVoid={hasPermission(me, 'payments.void')} onChanged={reload} />
         )}
       </section>
 
       {selling && (
-        <Modal title="Sell a package" onClose={() => setSelling(false)}>
+        <Modal title="Sell a package" description="The terms are copied at the moment of sale." onClose={() => setSelling(false)}>
           <SellForm
             clientId={clientId}
             onCancel={() => setSelling(false)}
             onSold={(pkg) => {
               setSelling(false);
               reload();
+              toast.show('Package sold');
               // Most sales are paid at the desk, so offer the payment straight away
               if (canPay) setPayingFor(pkg);
             }}
@@ -174,6 +180,7 @@ export function ClientMoney({ clientId }: { clientId: string }) {
             onSaved={() => {
               setPayingFor(null);
               reload();
+              toast.show('Payment recorded');
             }}
           />
         </Modal>
@@ -228,42 +235,33 @@ function SellForm({
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4">
-      <div className="space-y-1">
-        <label htmlFor="tpl" className="text-sm font-medium">Package</label>
-        <select id="tpl" value={templateId} onChange={(e) => setTemplateId(e.target.value)} className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm">
+    <form onSubmit={submit} className="space-y-5">
+      <Field label="Package" htmlFor="tpl">
+        <Select id="tpl" value={templateId} onChange={(e) => setTemplateId(e.target.value)} data-autofocus>
           <option value="">{templates === null ? 'Loading…' : 'Choose a package'}</option>
           {templates?.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name} · {t.sessionCount} sessions · {formatUsd(t.priceUsd)}
             </option>
           ))}
-        </select>
-        {templates?.length === 0 && (
-          <p className="text-sm text-amber-800">No packages are on offer yet. Add one under Packages.</p>
-        )}
-      </div>
+        </Select>
+        {templates?.length === 0 && <p className="mt-1.5 text-sm text-warn-ink">No packages are on offer yet. Add one under Packages.</p>}
+      </Field>
 
       {chosen && (
-        <p className="rounded-md bg-stone-50 p-3 text-sm">
-          {chosen.sessionCount} sessions of {chosen.serviceName} for {formatUsd(chosen.priceUsd)}, valid for{' '}
-          {chosen.validityDays} days from today. These terms are fixed once sold.
-        </p>
+        <Alert tone="info">
+          {chosen.sessionCount} sessions of {chosen.serviceName} for {formatUsd(chosen.priceUsd)}, valid for {chosen.validityDays} days from today.
+          These terms are fixed once sold.
+        </Alert>
       )}
 
-      {error && (
-        <p role="alert" className="text-sm text-red-700">
-          {error}
-        </p>
-      )}
+      {error && <Alert tone="bad">{error}</Alert>}
 
-      <div className="flex gap-2">
-        <button type="submit" disabled={saving || !chosen} className="rounded-md bg-stone-900 px-4 py-2 text-sm text-white disabled:opacity-60">
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button type="submit" variant="primary" loading={saving} disabled={!chosen}>
           {saving ? 'Selling…' : 'Sell package'}
-        </button>
-        <button type="button" onClick={onCancel} className="rounded-md border border-stone-300 px-4 py-2 text-sm">
-          Cancel
-        </button>
+        </Button>
       </div>
     </form>
   );

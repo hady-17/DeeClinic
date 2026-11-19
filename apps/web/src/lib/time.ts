@@ -57,3 +57,7 @@ export const lastValidDay = (expiresAt: string, tz: string) =>
 
 export const formatDateTime =(iso: string, tz: string) =>
   formatInTimeZone(iso, tz, 'EEE d MMM, HH:mm');
+
+export const weekdayShort = (day: string) => formatInTimeZone(new Date(`${day}T12:00:00Z`), 'UTC', 'EEE');
+export const dayNumber = (day: string) => formatInTimeZone(new Date(`${day}T12:00:00Z`), 'UTC', 'd');
+export const monthYear = (day: string) => formatInTimeZone(new Date(`${day}T12:00:00Z`), 'UTC', 'MMMM yyyy');

@@ -71,7 +71,7 @@ Copy [.env.example](.env.example) and fill it in. The values go in two places:
 | `SUPABASE_PUBLISHABLE_KEY` | The publishable (anon) key. Used only to check passwords |
 | `CRON_SECRET` | Any random string of 16 or more characters |
 | `PASSCODE_PEPPER` | A random string of 32 or more characters. Protects passcodes. See below |
-| `WEB_ORIGIN` | Where the web app runs. Defaults to `http://localhost:3000` |
+| `WEB_ORIGIN` | The web address(es) allowed to call the API, comma separated. Defaults to `http://localhost:3000`. A `*` matches part of a name, for example `https://deeclinic-*.vercel.app` |
 | `PORT` | API port. Defaults to `4000` |
 | `WHATSAPP_*` | Not needed until Phase 3 |
 
@@ -166,7 +166,9 @@ Routes never check roles. They ask for a named permission, and one table in [pac
 
 ## Deployment
 
-Vercel deploys both apps from this repository (a push to `main` goes to production, and each pull request gets a preview). GitHub Actions runs the checks and the database migrations. Setup steps, environment variables and rollback are in [docs/05-ci-cd.md](docs/05-ci-cd.md).
+Vercel deploys both apps from this repository: the web app (Next.js) and the API, which `npm run build:vercel` bundles into Vercel's Build Output format. A push to `main` goes to production, and each pull request gets a preview. GitHub Actions runs the checks and the database migrations.
+
+**First deployment:** follow [section 4a of docs/05-ci-cd.md](docs/05-ci-cd.md#4a-deploying-to-vercel-for-the-first-time). In short: create the API project first (root `apps/api`), then the web project (root `apps/web`) pointing at it, then set `WEB_ORIGIN` on the API and the redirect URL in Supabase.
 
 ## Troubleshooting
 
@@ -177,6 +179,7 @@ Vercel deploys both apps from this repository (a push to `main` goes to producti
 | Web app says the URL and key are required | `apps/web/.env.local` is missing. Restart `npm run dev:web` after creating it |
 | Reset and invite emails never arrive | Custom SMTP is not set up in Supabase |
 | Reset link says it has expired | The redirect URL is not allowed in Supabase, or the link was already used |
+| Deployed site says "Could not load" and the browser reports a CORS error | `WEB_ORIGIN` on the API does not exactly match the web address, or the API was not redeployed after changing it |
 | "Set the exchange rate before taking a payment in LBP" | No rate has been entered yet. Add one under *Exchange rate* |
 
 ## Documentation

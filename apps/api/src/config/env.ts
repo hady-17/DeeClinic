@@ -14,6 +14,7 @@ const schema = z.object({
    * every passcode stops working and each owner and manager sets a new one.
    */
   PASSCODE_PEPPER: z.string().min(32).optional(),
+  /** Allowed web addresses, comma separated. A * matches part of a name. See config/origins.ts. */
   WEB_ORIGIN: z.string().default('http://localhost:3000'),
   WHATSAPP_ACCESS_TOKEN: z.string().optional(),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),

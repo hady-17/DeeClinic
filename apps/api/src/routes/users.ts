@@ -8,6 +8,7 @@ import {
 import { Router } from 'express';
 import { z } from 'zod';
 import { getEnv } from '../config/env.js';
+import { primaryOrigin } from '../config/origins.js';
 import { writeAudit } from '../lib/audit.js';
 import { AppError } from '../lib/errors.js';
 import { logger } from '../lib/logger.js';
@@ -97,7 +98,7 @@ usersRouter.post('/users', async (req, res) => {
   // person choose their own password.
   const { data, error } = input.password
     ? await admin.createUser({ email: input.email, password: input.password, email_confirm: true })
-    : await admin.inviteUserByEmail(input.email, { redirectTo: `${getEnv().WEB_ORIGIN}/reset-password` });
+    : await admin.inviteUserByEmail(input.email, { redirectTo: `${primaryOrigin(getEnv().WEB_ORIGIN)}/reset-password` });
 
   if (error || !data.user) {
     if (error && (error.status === 422 || /already|registered|exists/i.test(error.message))) {

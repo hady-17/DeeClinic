@@ -8,6 +8,7 @@ import {
 } from '@deeclinic/shared';
 import { Router } from 'express';
 import { getEnv } from '../config/env.js';
+import { primaryOrigin } from '../config/origins.js';
 import { writeAudit } from '../lib/audit.js';
 import { AppError } from '../lib/errors.js';
 import { isPasswordOnlySession } from '../lib/jwt.js';
@@ -114,7 +115,7 @@ authRouter.post(
 
     if (profile?.is_active) {
       const { error } = await createAuthClient().auth.resetPasswordForEmail(email, {
-        redirectTo: `${getEnv().WEB_ORIGIN}/reset-password`,
+        redirectTo: `${primaryOrigin(getEnv().WEB_ORIGIN)}/reset-password`,
       });
       if (error) logger.error({ status: error.status }, 'Could not send the reset email');
       await auditQuietly({

@@ -50,6 +50,14 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
           NEXT_PUBLIC_API_URL: http://localhost:4000
 
+      # Builds the API exactly as Vercel will, then loads the result the way Vercel does and makes
+      # sure it answers. This catches a broken deployment before it reaches Vercel.
+      - name: Build the API for Vercel
+        run: npm run build:vercel -w @deeclinic/api
+
+      - name: Check the API bundle starts and answers
+        run: npm run smoke:vercel -w @deeclinic/api
+
   audit:
     name: Dependency audit
     runs-on: ubuntu-latest

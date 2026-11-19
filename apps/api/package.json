@@ -9,7 +9,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e-auth": "tsx --env-file=../../.env scripts/e2e-auth.ts",
-    "test:e2e-phase2": "tsx --env-file=../../.env scripts/e2e-phase2.ts"
+    "test:e2e-phase2": "tsx --env-file=../../.env scripts/e2e-phase2.ts",
+    "build:vercel": "node scripts/build-vercel.mjs",
+    "smoke:vercel": "node scripts/smoke-vercel.mjs"
   },
   "dependencies": {
     "@deeclinic/shared": "*",
@@ -28,7 +30,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/supertest": "^7.2.1",
-    "@vercel/node": "^31.0.0",
+    "esbuild": "^0.28.2",
     "supertest": "^7.3.2",
     "tsx": "^4.23.15",
     "vitest": "^5.1.0"

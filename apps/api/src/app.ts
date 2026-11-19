@@ -3,6 +3,7 @@ import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
+import { parseOrigins } from './config/origins.js';
 import { logger } from './lib/logger.js';
 import { rateLimit } from './lib/rate-limit.js';
 import { errorHandler, notFound } from './middleware/error-handler.js';
@@ -26,7 +27,7 @@ export function createApp() {
     }),
   );
   app.use(helmet());
-  app.use(cors({ origin: process.env.WEB_ORIGIN ?? 'http://localhost:3000' }));
+  app.use(cors({ origin: parseOrigins(process.env.WEB_ORIGIN) }));
   // The raw body for the WhatsApp webhook signature is added with that route in Phase 3.
   // CSV imports are bigger than a normal request, so only that path gets a higher limit.
   app.use('/api/v1/clients/import', express.json({ limit: '3mb' }));

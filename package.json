@@ -25,7 +25,7 @@
     "supabase": "^3.1.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.72.2",
-    "vercel": "^65.16.0"
+    "vercel": "^66.1.0"
   },
   "overrides": {
     "path-to-regexp@^8.0.0": "^8.4.2"
